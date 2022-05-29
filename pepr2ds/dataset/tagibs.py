@@ -578,7 +578,7 @@ class Dataset():
 
   
 
-    def export_dataset_PePrMInt(self, removeCB=True, peprmint_web_dataset_folder = '/Users/thibault/softwares/peprmint-web/web-client/src/datasets', PePr2Ds_folder='/Users/thibault/OneDrive - University of Bergen/projects/peprmint/dev/pepr2ds/Ressources/datasets', custom_mode=False):
+    def export_dataset_PePrMInt(self, outputfile=None):
         """
         Clean and prepare the dataset for PePrMInt database (PrPr2DS)
         Returns: df (pd.DataFrame)
@@ -664,53 +664,5 @@ class Dataset():
 
 
 
-        if custom_mode == False:
-            outputFolder = f"{self.PEPRMINT_FOLDER}/dataset"
-            df.to_pickle(f"{outputFolder}/PePr2DS.pkl", ) # Full dataset, Full name
-            df.to_csv(f"{self.PEPRMINT_FOLDER}/dataset/PePr2DS.csv", index=False,) # Full dataset, Full name
 
-            #Compress those files for GitHub
-            previousPath = os.path.abspath(os.getcwd())
-            #Go to the directory where the csv is
-        
-            os.chdir(PePr2Ds_folder)
-            df.to_pickle(f"PePr2DS.pkl.zip", compression='zip') # Full dataset, Full name
-            df.to_csv(f"PePr2DS.csv.zip", index=False, compression='zip') # Full dataset, Full name
-            os.chdir(previousPath)
-
-            #Save Statistics.json!
-            statistics = {}
-            statistics["structures"] = len(df.cathpdb.unique())
-            statistics["residueList"] = df.residue_name.unique().tolist()
-            statistics["domainsList"] = df.domain.unique().tolist()
-            statistics["experimentalMethod"] = df["Experimental Method"].unique().tolist()
-            statistics["downloadLink"] = "https://github.com/reuter-group/pepr2ds/blob/main/Ressources/datasets/PePr2DS.csv.zip"
-
-            import json 
-            # Serializing json  
-            json_object = json.dumps(statistics, indent = 4) 
-            with open(f"{peprmint_web_dataset_folder}/statistics.json", 'w') as out:
-                out.write(json_object)
-
-
-        domains = df.domain.unique()
-
-        short2long = {v: k for k, v in long2short.items()}
-
-        #Rename all columns into shorter format
-        df.rename(columns=long2short, inplace=True)
-
-        #Remove neighbor list for non protrusion
-        df.loc[df["pro"] == False, "nbl"] = np.NaN
-
-
-        #check if pepr2DS file is present.
-        for dom in domains:
-            df.query("dm == @dom").to_csv(f"{peprmint_web_dataset_folder}/domain_{dom}.csv", index=False)
-
-        print("Done")
-        print(f" - Full Dataset exported in {self.PEPRMINT_FOLDER}/dataset")
-        print(f"Peprmint-web csv format exported in {peprmint_web_dataset_folder}")
-        print("Dont' forget to update peprmint repository with git.")
-        
-        #return df
+        df.to_csv(outputfile, index=False,) # Full dataset, Full name
