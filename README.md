@@ -51,17 +51,22 @@ The easiest way to have a proper install of the dependencies is to create a new 
 Installation with an environment.
 
 1. Install nb_conda_kernels to use your environment in conda (and only this because mkdssp will not be loaded in the PATH without this solution). Do that in "BASE"  
-`conda deactivate
+```bash 
+conda deactivate
 jupyter labextension install @jupyter-widgets/jupyterlab-manager
-jupyter nbextension enable --py widgetsnbextension`
+jupyter nbextension enable --py widgetsnbextension
+```
 
 2. Create an environment for this PePrMInt dataset creation and use its kernel  
-`conda create --name peprmint -c conda-forge -c salilab -c hydroid seaborn pandas biopandas biopython ipywidgets scipy numpy tqdm xmltodict pathlib dssp pytables termcolor requests bs4 lxml wordcloud nglview mdanalysis weasyprint openpyxl`
+```bash
+conda create --name peprmint -c conda-forge -c salilab -c hydroid seaborn pandas biopandas biopython ipywidgets scipy numpy tqdm xmltodict pathlib dssp pytables termcolor requests bs4 lxml wordcloud nglview mdanalysis weasyprint openpyxl
+```
 
 3. for progressbar usage (in base):  
 ```bash 
 jupyter labextension install @jupyter-widgets/jupyterlab-manager 
-jupyter nbextension enable --py widgetsnbextension```
+jupyter nbextension enable --py widgetsnbextension
+```
 
 3. Don't forget to choose the PePrMInt environment for the kernel "`Python [conda env:peprmint]`"
 
