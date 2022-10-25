@@ -1,6 +1,10 @@
+[![DOI](https://zenodo.org/badge/495005184.svg)](https://zenodo.org/badge/latestdoi/495005184)
+
 # PePrMInt Dataset
 
-** Still `WIP` **
+```diff
+- Readme still  Still WIP 
+```
 
 This repository contains everything needed to generate the peprmint dataset. 
 It is fully automated and should work on linux/mac and windows.
@@ -47,14 +51,22 @@ The easiest way to have a proper install of the dependencies is to create a new 
 Installation with an environment.
 
 1. Install nb_conda_kernels to use your environment in conda (and only this because mkdssp will not be loaded in the PATH without this solution). Do that in "BASE"  
-`conda install -c conda-forge nb_conda_kernels nodejs ipywidgets`
+```bash 
+conda deactivate
+jupyter labextension install @jupyter-widgets/jupyterlab-manager
+jupyter nbextension enable --py widgetsnbextension
+```
 
 2. Create an environment for this PePrMInt dataset creation and use its kernel  
-`conda create --name peprmint -c conda-forge -c salilab python=3.7 seaborn pandas biopandas biopython ipywidgets scipy numpy tqdm xmltodict pathlib dssp pytables termcolor requests bs4 lxml wordcloud`
+```bash
+conda create --name peprmint -c conda-forge -c salilab -c hydroid seaborn pandas biopandas biopython ipywidgets scipy numpy tqdm xmltodict pathlib dssp pytables termcolor requests bs4 lxml wordcloud nglview mdanalysis weasyprint openpyxl
+```
 
-3. for progressbar usage:  
-`jupyter labextension install @jupyter-widgets/jupyterlab-manager
-jupyter nbextension enable --py widgetsnbextension`
+3. for progressbar usage (in base):  
+```bash 
+jupyter labextension install @jupyter-widgets/jupyterlab-manager 
+jupyter nbextension enable --py widgetsnbextension
+```
 
 3. Don't forget to choose the PePrMInt environment for the kernel "`Python [conda env:peprmint]`"
 
