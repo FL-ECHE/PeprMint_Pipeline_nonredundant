@@ -2,9 +2,6 @@
 
 # PePrMInt Dataset
 
-```diff
-- Readme still  Still WIP 
-```
 
 This repository contains everything needed to generate the peprmint dataset. 
 It is fully automated and should work on linux/mac and windows.
