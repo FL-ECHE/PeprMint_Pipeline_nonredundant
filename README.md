@@ -53,7 +53,7 @@ The following assumes only that the current machine includes a recent
 installation of the Anaconda distribution (https://www.anaconda.com/).
 
 ## Environment
-1. Conda is a well-known package and programming environment manager, allowing 
+Conda is a well-known package and programming environment manager, allowing 
 one to create a controlled setting with respect to installed libraries and 
 their versions (a major goal is to avoid the "dependency hell"). Conda is 
 currently being replaced by Mamba, especially for scientific packaging in 
@@ -116,9 +116,4 @@ We propose that, in the end of this iteration, the same datasets and images coul
 
 1. Set parameters and options in a configuration file
 
-2. Run a `python peprmint-dataset` command in the terminal
-
-
-
-
-
+2. Run `python peprmint-dataset.py` command in the terminal
