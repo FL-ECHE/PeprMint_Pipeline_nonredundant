@@ -1,3 +1,5 @@
 trunk/.ipynb_checkpoints/
 trunk/notebooks/.ipynb_checkpoints/
-
+src/porting_experiment/
+src/original-notebooks/
+__pycache__/
