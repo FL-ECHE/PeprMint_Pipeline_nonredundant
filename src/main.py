@@ -55,11 +55,11 @@ def main():
 
     # when executing within a jupyter notebook, enable the following
     # TO DO: make this automatic
-    global_settings.using_notebook()
+    #global_settings.using_notebook()
 
     # notebook #1
     data_retriever = DataRetriever(global_settings)
-    data_retriever.fetch_data_from_all()
+    data_retriever.run()
 
 
 if __name__ == '__main__':

@@ -36,13 +36,10 @@ __email__ = "samer@uib.no"
 __status__ = "Prototype"
 """
 
-import pandas as pd
-
 import ipywidgets as widgets
 from IPython.display import display
-from tqdm.notebook import tnrange, tqdm
 
 class NotebookHandle:
 
     def __init__(self):
-        tqdm.pandas()   # activate tqdm progressbar for pandas
+        pass

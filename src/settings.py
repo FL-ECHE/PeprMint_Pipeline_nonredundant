@@ -38,6 +38,9 @@ __status__ = "Prototype"
 
 import os
 
+import pandas as pd
+from tqdm.auto import trange, tqdm
+
 from notebook_handle import NotebookHandle
 
 class Settings:
@@ -46,8 +49,9 @@ class Settings:
         self.USING_NOTEBOOK = False
         self.NOTEBOOK_HANDLE = None
 
+        self.libs_setup()
+        
         self.SETUP = {}   # dictionary with ALL parameters
-
         self.define_folders()
         self.create_directories()
         self.map_cath_and_prosite()
@@ -55,6 +59,10 @@ class Settings:
     def using_notebook(self):
         self.USING_NOTEBOOK = True
         self.NOTEBOOK_HANDLE = NotebookHandle()
+
+    def libs_setup(self):
+        """ Place any additional settings for imported libraries here"""
+        tqdm.pandas()   # activate tqdm progressbar for pandas
 
     def define_folders(self):
         # TO DO: make this an option instead of hardcoding
