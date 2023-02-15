@@ -24,14 +24,7 @@
 # SOFTWARE.
 
 
-""" Rewriting the code to create and analyse data from the PePrMInt project.
-
-As of now, we are ignoring the architecture of the future solution, and simply
-porting the code previously developed in python notebooks by Thibault Tubiana 
-towards a stand-alone script that we can test and maintain more easily.
-In the next steps, we shall determine adequate modules and include options to
-skip different phases of the workflow to allow researchers work with 
-intermediate results.
+""" Handle to use the software from Jupyter notebooks with the adequate settings
 
 __author__ = ["Thibault Tubiana", "Phillippe Samer"]
 __organization__ = "Computational Biology Unit, Universitetet i Bergen"
@@ -43,26 +36,13 @@ __email__ = "samer@uib.no"
 __status__ = "Prototype"
 """
 
-import os
-import sys
+import pandas as pd
 
-from settings import Settings
-from data_retriever import DataRetriever
+import ipywidgets as widgets
+from IPython.display import display
+from tqdm.notebook import tnrange, tqdm
 
-def main():
-    # notebook #0
-    global_settings = Settings()
+class NotebookHandle:
 
-    # when executing within a jupyter notebook, enable the following
-    # TO DO: make this automatic
-    global_settings.using_notebook()
-
-    # notebook #1
-    data_retriever = DataRetriever(global_settings)
-    data_retriever.fetch_data_from_all()
-
-
-if __name__ == '__main__':
-    print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),
-        file=sys.stderr)
-    main()
+    def __init__(self):
+        tqdm.pandas()   # activate tqdm progressbar for pandas

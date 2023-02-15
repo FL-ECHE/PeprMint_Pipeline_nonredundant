@@ -26,6 +26,11 @@
 
 """ Data download (previously on Notebook #1)
 
+The only difference here is that we moved notebook-related imports and initial 
+settings to NotebookHandle. When using jupyter notebooks, it suffices to call 
+the using_notebook() method from Settings before running everything else, e.g. 
+as currently done in main().
+
 __author__ = ["Thibault Tubiana", "Phillippe Samer"]
 __organization__ = "Computational Biology Unit, Universitetet i Bergen"
 __copyright__ = "Copyright (c) 2022 Reuter Group"
@@ -47,12 +52,6 @@ import gzip
 
 from settings import Settings
 
-'''
-TO DO: not including IPython and related packages, nor settings e.g. activating
-progress bars. 
-Consider making an adequate interface to use everything in notebooks
-'''
-
 class DataRetriever:
 
     def __init__(self, global_settings: Settings):
@@ -67,6 +66,12 @@ class DataRetriever:
         except:
             self.PARALLEL = False
 
+    def fetch_data_from_all(self):
+        self.retrieve_cath_domains()
+        self.retrieve_uniprot_to_pdb_correspondence()
+        self.retrieve_prosite()
+        self.retrieve_cath_pdb_files()
+
     def retrieve_cath_domains(self):
         pass
 
@@ -77,7 +82,4 @@ class DataRetriever:
         pass
 
     def retrieve_cath_pdb_files(self):
-        pass
-
-    def fetch_data_from_all(self):
         pass

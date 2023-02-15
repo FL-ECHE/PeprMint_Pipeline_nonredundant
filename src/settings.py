@@ -38,14 +38,23 @@ __status__ = "Prototype"
 
 import os
 
+from notebook_handle import NotebookHandle
+
 class Settings:
 
     def __init__(self):
+        self.USING_NOTEBOOK = False
+        self.NOTEBOOK_HANDLE = None
+
         self.SETUP = {}   # dictionary with ALL parameters
 
         self.define_folders()
         self.create_directories()
         self.map_cath_and_prosite()
+
+    def using_notebook(self):
+        self.USING_NOTEBOOK = True
+        self.NOTEBOOK_HANDLE = NotebookHandle()
 
     def define_folders(self):
         # TO DO: make this an option instead of hardcoding
