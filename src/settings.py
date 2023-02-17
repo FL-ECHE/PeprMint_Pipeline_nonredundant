@@ -37,6 +37,8 @@ __status__ = "Prototype"
 """
 
 import os
+from typing import Optional
+import configparser
 
 import pandas as pd
 from tqdm.auto import trange, tqdm
@@ -45,35 +47,94 @@ from notebook_handle import NotebookHandle
 
 class Settings:
 
-    def __init__(self):
+    def __init__(self, path: Optional[str] = None):
+        self._DEFAULT_CONFIG_FILE = '{0}/{1}'.format(os.getcwd(),
+                                                     'peprmint_default.config')
+        self._run_config(path)
+
         self.USING_NOTEBOOK = False
         self.NOTEBOOK_HANDLE = None
 
-        self.libs_setup()
-        
+        self._libs_setup()
+
+        # create directory structure for peprmint
+        cwd = self.config_file['GENERAL']['working_folder_path']
+        try:
+            print('Working directory: {0}'.format(cwd))
+            os.makedirs(cwd)
+        except FileExistsError:
+            print('Working directory already exists - calling run() from DataRetriever will rewrite data!')
+
+        self.PEPRMINT_FOLDER = cwd
         self.SETUP = {}   # dictionary with ALL parameters
         self.define_folders()
         self.create_directories()
         self.map_cath_and_prosite()
 
+    def _run_config(self, path: Optional[str] = None):
+        """ Read configuration file
+        First, try to read the user configurations, either at the standard file
+        or at the location given in the optional constructor parameter.
+        If neither of these work, genereate the original config file.
+        """
+        config_ready = False
+
+        if path is not None:
+            config_ready = self._read_config_file(path)
+            if config_ready:
+                print("Using configuration file '{0}'".format(path))
+            else:
+                print("Could not find configuration file '{0}'".format(path))
+
+        if not config_ready:
+            print("Reading standard configuration file... ", end = '')
+            config_ready = self._read_config_file(self._DEFAULT_CONFIG_FILE)
+            if config_ready:
+                print("done")
+            else:
+                print("not found")
+                print("Using factory configuration, saved locally at '{0}'".format(self._DEFAULT_CONFIG_FILE))
+                self._write_default_config_file(self._DEFAULT_CONFIG_FILE)
+
+    def _read_config_file(self, path: str) -> bool:
+        if not os.path.isfile(path):
+            return False
+
+        # TO DO: maybe check if given file indeed has all of the expected sections and fields?
+        self.config_file = configparser.ConfigParser()
+        self.config_file.read(path)
+        return True
+
+    def _write_default_config_file(self, path: str):
+        self.config_file = configparser.ConfigParser()
+
+        self.config_file['GENERAL'] = {}
+        # default folder: a new one in the current working directory
+        self.config_file['GENERAL']['working_folder_path'] = '{0}/data'.format(os.getcwd())
+
+        self.config_file['CATH'] = {}
+        self.config_file['CATH']['version'] = 'v4_2_0'
+        self.config_file['CATH']['domain_list_url'] = "http://download.cathdb.info/cath/releases/all-releases/{0}/cath-classification-data/cath-domain-list-{0}.txt".format(self.config_file['CATH']['version'])
+        self.config_file['CATH']['fetch_pdb_url'] = "http://www.cathdb.info/version/{0}/api/rest/id/".format(self.config_file['CATH']['version'])
+
+        self.config_file['UNIPROT'] = {}
+        self.config_file['UNIPROT']['url'] = "ftp://ftp.ebi.ac.uk/pub/databases/msd/sifts/flatfiles/csv/pdb_chain_uniprot.csv.gz"
+
+        self.config_file['PROSITE'] = {}
+        self.config_file['PROSITE']['url'] = "ftp://ftp.expasy.org/databases/prosite/prosite_alignments.tar.gz"
+
+        with open(path, 'w') as configfile:
+            self.config_file.write(configfile)
+
+    def _libs_setup(self):
+        # Place any additional settings for imported libraries here
+        tqdm.pandas()   # activate tqdm progressbar for pandas
+
     def using_notebook(self):
         self.USING_NOTEBOOK = True
         self.NOTEBOOK_HANDLE = NotebookHandle()
 
-    def libs_setup(self):
-        """ Place any additional settings for imported libraries here"""
-        tqdm.pandas()   # activate tqdm progressbar for pandas
-
     def define_folders(self):
-        # TO DO: make this an option instead of hardcoding
-        cwd = '{0}/porting_experiment'.format(os.getcwd())
-        try:
-            print('Working directory: {0}'.format(cwd))
-            os.makedirs(cwd)
-        except FileExistsError:
-            print('Working directory already exists - will rewrite data!')
-
-        self.PEPRMINT_FOLDER = cwd
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
         self.CATHFOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/"
         self.ALFAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alfafold/"
@@ -110,8 +171,7 @@ class Settings:
             os.makedirs(self.CATHFOLDER)
 
     def map_cath_and_prosite(self):
-        # TO DO: make this an option instead of hardcoding
-        self.CATHVERSION = 'v4_2_0'
+        self.CATHVERSION = self.config_file['CATH']['version']
         self.DOMAIN_PROSITE = {
             "PH": "PS50003",
             "C2": ["PS50004","PS51547"],

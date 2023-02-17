@@ -73,10 +73,9 @@ class DataRetriever:
         self.retrieve_cath_pdb_files()
 
     def retrieve_cath_domains(self):
-        # TO DO: make these options instead of hardcoding, e.g. previous ftp address not working anymore (replaced by http)
-        # TO DO: release 4_2_0 or latest? at least use CATHVERSION on Settings?
+        # TO DO: release 4_2_0 or latest?
         self.dom_file = 'cath-domain-list.txt'
-        url = "http://download.cathdb.info/cath/releases/all-releases/v4_2_0/cath-classification-data/cath-domain-list-v4_2_0.txt"
+        url = self.settings.config_file['CATH']['domain_list_url']
 
         destination = self.settings.CATHFOLDER + self.dom_file
         if not os.path.isfile(destination) or self.UPDATE: 
@@ -96,8 +95,7 @@ class DataRetriever:
                                  'resolution', ]
 
     def retrieve_uniprot_to_pdb_correspondence(self):
-        # TO DO: make this an option instead of hardcoding
-        url = "ftp://ftp.ebi.ac.uk/pub/databases/msd/sifts/flatfiles/csv/pdb_chain_uniprot.csv.gz"
+        url = self.settings.config_file['UNIPROT']['url']
 
         destination = self.settings.CATHFOLDER + "pdb_chain_uniprot.csv"
 
@@ -114,8 +112,7 @@ class DataRetriever:
             os.remove(tmp_destination)
 
     def retrieve_prosite(self):
-        # TO DO: make this an option instead of hardcoding
-        url = "ftp://ftp.expasy.org/databases/prosite/prosite_alignments.tar.gz"
+        url = self.settings.config_file['PROSITE']['url']
 
         destination = self.settings.PROSITEFOLDER + "prosite_alignments.tar.gz" 
 
@@ -187,8 +184,7 @@ class DataRetriever:
                 lambda x : self._fetch_pdb_from_cath_dom(x, folder) )
 
     def _fetch_pdb_from_cath_dom(self, dom, folder):
-        # TO DO: make this an option instead of hardcoding
-        url = "http://www.cathdb.info/version/" + self.settings.CATHVERSION + "/api/rest/id/" + dom + ".pdb"
+        url = self.settings.config_file['CATH']['fetch_pdb_url'] +  dom + ".pdb"
         destination = folder + dom + '.pdb'
         if not os.path.isfile(destination): 
             urllib.request.urlretrieve(url, destination)

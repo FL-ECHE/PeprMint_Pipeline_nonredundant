@@ -51,7 +51,8 @@ from data_retriever import DataRetriever
 
 def main():
     # notebook #0
-    global_settings = Settings()
+    global_settings = Settings()   # setup reading standard configuration file
+    #global_settings = Settings("/opt/cbu/my.config")  # use different config file
 
     # when executing within a jupyter notebook, enable the following
     # TO DO: make this automatic
