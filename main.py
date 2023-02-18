@@ -46,21 +46,17 @@ __status__ = "Prototype"
 import os
 import sys
 
-from settings import Settings
-from data_retriever import DataRetriever
+from src.settings import Settings
+from src.data_retriever import DataRetriever
 
 def main():
     # notebook #0
     global_settings = Settings()   # setup reading standard configuration file
     #global_settings = Settings("/opt/cbu/my.config")  # use different config file
-
-    # when executing within a jupyter notebook, enable the following
-    # TO DO: make this automatic
-    #global_settings.using_notebook()
-
+    
     # notebook #1
     data_retriever = DataRetriever(global_settings)
-    data_retriever.run()
+    #data_retriever.run()
 
 
 if __name__ == '__main__':

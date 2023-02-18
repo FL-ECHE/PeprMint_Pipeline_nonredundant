@@ -43,18 +43,20 @@ import configparser
 import pandas as pd
 from tqdm.auto import trange, tqdm
 
-from notebook_handle import NotebookHandle
+from src.notebook_handle import NotebookHandle
 
 class Settings:
 
     def __init__(self, path: Optional[str] = None):
         self._DEFAULT_CONFIG_FILE = '{0}/{1}'.format(os.getcwd(),
                                                      'peprmint_default.config')
+        self.USING_NOTEBOOK = self._is_notebook()
+        if self.USING_NOTEBOOK:
+            self.NOTEBOOK_HANDLE = NotebookHandle()
+        else:
+            self.NOTEBOOK_HANDLE = None
+
         self._run_config(path)
-
-        self.USING_NOTEBOOK = False
-        self.NOTEBOOK_HANDLE = None
-
         self._libs_setup()
 
         # create directory structure for peprmint
@@ -70,6 +72,18 @@ class Settings:
         self.define_folders()
         self.create_directories()
         self.map_cath_and_prosite()
+
+    def _is_notebook(self) -> bool:
+        try:
+            shell = get_ipython().__class__.__name__
+            if shell == 'ZMQInteractiveShell':
+                return True   # jupyter notebook
+            elif shell == 'TerminalInteractiveShell':
+                return False  # terminal running IPython
+            else:
+                return False  # other type (?)
+        except NameError:
+            return False      # probably standard Python interpreter
 
     def _run_config(self, path: Optional[str] = None):
         """ Read configuration file
@@ -129,10 +143,6 @@ class Settings:
     def _libs_setup(self):
         # Place any additional settings for imported libraries here
         tqdm.pandas()   # activate tqdm progressbar for pandas
-
-    def using_notebook(self):
-        self.USING_NOTEBOOK = True
-        self.NOTEBOOK_HANDLE = NotebookHandle()
 
     def define_folders(self):
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"

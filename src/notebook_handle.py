@@ -42,4 +42,5 @@ from IPython.display import display
 class NotebookHandle:
 
     def __init__(self):
-        pass
+        # TO DO: adjust notebook-specific settings here
+        print("Notebook environment settings loaded")

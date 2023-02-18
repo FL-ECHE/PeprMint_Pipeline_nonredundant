@@ -50,7 +50,7 @@ import urllib
 import tarfile
 import gzip
 
-from settings import Settings
+from src.settings import Settings
 
 class DataRetriever:
 
