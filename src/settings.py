@@ -137,6 +137,9 @@ class Settings:
         self.config_file['PROSITE'] = {}
         self.config_file['PROSITE']['url'] = "ftp://ftp.expasy.org/databases/prosite/prosite_alignments.tar.gz"
 
+        self.config_file['DATASET_MANAGER'] = {}
+        self.config_file['DATASET_MANAGER']['recalculate'] = str(False)
+
         with open(path, 'w') as configfile:
             self.config_file.write(configfile)
 

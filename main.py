@@ -48,16 +48,20 @@ import sys
 
 from src.settings import Settings
 from src.data_retriever import DataRetriever
+from src.dataset_manager import DatasetManager
 
 def main():
     # notebook #0
     global_settings = Settings()   # setup reading standard configuration file
     #global_settings = Settings("/opt/cbu/my.config")  # use different config file
-    
+
     # notebook #1
     data_retriever = DataRetriever(global_settings)
     #data_retriever.run()
 
+    # notebook #2
+    dataset_manager = DatasetManager(global_settings)
+    dataset_manager.run(recalculate=False)
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

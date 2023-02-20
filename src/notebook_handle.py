@@ -42,5 +42,11 @@ from IPython.display import display
 class NotebookHandle:
 
     def __init__(self):
-        # TO DO: adjust notebook-specific settings here
-        print("Notebook environment settings loaded")
+        print("Notebook settings loaded (general)")
+
+    def dataset_manager_options(self):
+        # Notebook #2 settings
+        from IPython.core.interactiveshell import InteractiveShell
+        InteractiveShell.ast_node_interactivity = "all"
+        get_ipython().run_line_magic('config', "InlineBackend.figure_format ='svg' #better quality figure figure")
+        print("Notebook settings loaded (for dataset creation)")
