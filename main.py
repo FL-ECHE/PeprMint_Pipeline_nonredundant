@@ -61,7 +61,13 @@ def main():
 
     # notebook #2
     dataset_manager = DatasetManager(global_settings)
-    dataset_manager.run(recalculate=False)
+
+    # building dataset from data fetched above
+    #dataset_manager.build(recalculate=False)
+
+    # loading dataset built on a previous run
+    dataset_manager.load_light_dataset()
+
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

@@ -1,4 +1,5 @@
 from .Attributes import Attributes
+from .Uniprot import *
 
 import pandas as pd
 import numpy as np
@@ -39,6 +40,10 @@ class Sequence(Attributes):
             return:
                 mapping <dict> : mapping of {pdb:uniprot}
             """
+
+            #### DEPRECATED CODE ####
+            #### Due to an API change, one has now to submit a job and not only do a get-request. See Uniprot.py
+            """
             url = "https://www.uniprot.org/uploadlists/"
 
             params = {
@@ -63,6 +68,16 @@ class Sequence(Attributes):
                 mapping[uniprot] = gene
 
             return mapping
+            """
+            ###########################
+
+            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", to_db = "UniProtKB", ids= uniprot_accs)
+            
+            if check_id_mapping_results_ready(job_id):
+                link = get_id_mapping_results_link(job_id)
+                results = get_id_mapping_results_search(link)
+                mapping= {x["from"] : x["to"]["uniProtkbId"] for x in results["results"]}
+                return mapping
 
         DATASET.fillna(np.NaN, inplace=True)  # replace nan properly
         uniprot_accs = DATASET.uniprot_acc.unique()
@@ -85,6 +100,10 @@ class Sequence(Attributes):
                 pdbs <list> : list of all pdb names
             return:
                 mapping <dict> : mapping of {pdb:uniprot}
+            """
+
+            #### DEPRECATED CODE ####
+            #### Due to an API change, one has now to submit a job and not only do a get-request. See Uniprot.py
             """
             url = "https://www.uniprot.org/uploadlists/"
 
@@ -112,6 +131,18 @@ class Sequence(Attributes):
 
 
             return mapping
+            """
+            ###########################
+
+            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", to_db = to,ids=uniprotAccs)
+            
+            if check_id_mapping_results_ready(job_id):
+                link = get_id_mapping_results_link(job_id)
+                results = get_id_mapping_results_search(link)
+                #print(results["results"][1:2]) Uncomment if you want to see the format
+                mapping= {x["from"] : x["to"]["representativeMember"]["accessions"][0] for x in results["results"]}
+                return mapping
+
 
         def try_fetch_database(uniprotaccs, db, iteration=0):
             import time
@@ -133,9 +164,9 @@ class Sequence(Attributes):
         uniprotaccs = uniprotaccs[np.logical_not(uniprotaccs == np.nan)]
         # print("> Database queries, if fail, start again later")
 
-        uniref50 = try_fetch_database(uniprotaccs, "NF50")
-        uniref90 = try_fetch_database(uniprotaccs, "NF90")
-        uniref100 = try_fetch_database(uniprotaccs, "NF100")
+        uniref50 = try_fetch_database(uniprotaccs, "UniRef50")
+        uniref90 = try_fetch_database(uniprotaccs, "UniRef90")
+        uniref100 = try_fetch_database(uniprotaccs, "UniRef100")
 
         print("> mapping with dataset")
         DATASET["uniref50"] = DATASET["uniprot_acc"].apply(

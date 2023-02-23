@@ -24,7 +24,7 @@
 # SOFTWARE.
 
 
-""" PePrMInt dataset creation (previosuly on Notebook #2)
+""" PePrMInt dataset creation (previously on Notebook #2)
 
 __author__ = ["Thibault Tubiana", "Phillippe Samer"]
 __organization__ = "Computational Biology Unit, Universitetet i Bergen"
@@ -71,6 +71,9 @@ class DatasetManager:
             self.settings.NOTEBOOK_HANDLE.dataset_manager_options()
 
     def _pepr2ds_setup(self):
+        self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
+        self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
+
         import pepr2ds.builder.Builder as builderEngine
         importlib.reload(builderEngine)
         self.builder = builderEngine.Builder(self.settings.SETUP, 
@@ -79,9 +82,37 @@ class DatasetManager:
                                              notebook = self.settings.USING_NOTEBOOK,
                                              core = 1)
 
-    def run(self, recalculate: Optional[bool] = None):
+    def load_full_dataset(self) -> bool:
+        # loads the dataset built in a previous run (this full version is NOT 
+        # used in the original notebooks)
+        full_path = self.settings.WORKDIR + self._FULL_DATASET_FILENAME + ".pkl"
+        if not os.path.isfile(full_path):
+            print("Could not find the full dataset file ({0})".format(full_path))
+            print("Use build() from DatasetManager to create it")
+            return False
+        else:
+            self.DATASET = pd.read_pickle(full_path)
+            print("Dataset (full version) loaded successfully")
+            return True
+
+    def load_light_dataset(self) -> bool:
+        # loads the dataset built in a previous run (this light version is the 
+        # one used throughout the original notebooks)
+        full_path = self.settings.WORKDIR + self._LIGHT_DATASET_FILENAME + ".pkl"
+        if not os.path.isfile(full_path):
+            print("Could not find the light dataset file ({0})".format(full_path))
+            print("Use build() from DatasetManager to create it")
+            return False
+        else:
+            self.DATASET = pd.read_pickle(full_path)
+            print("Dataset (light version) loaded successfully")
+            return True
+
+    def build(self, recalculate: Optional[bool] = None):
+        # runs each step in the creation of the dataset (as of Notebook #02)
         if recalculate is not None:
             self.RECALCULATION = recalculate
+
         self.clean()
         self.compute_protusion()
         self.add_cluster_structural_info()
@@ -93,34 +124,137 @@ class DatasetManager:
         self.add_conservation()
         self.save_dataset()
 
+        print("\nDataset built successfully")
+        print("Dataset domains: ")
+        print(list(self.DATASET.domain.unique()))
+
+    """
+    ### All methods below just encapsulate the steps in Notebook #02
+    """
+
     def clean(self):
         self.builder.structure.clean_all_pdbs()
         self.DATASET = self.builder.structure.build_structural_dataset()
         self.DATASET.data_type.unique()
 
     def compute_protusion(self):
-        pass
+        self.DATASET = self.builder.structure.add_protrusions(self.DATASET)
 
     def add_cluster_structural_info(self):
-        pass
+        # TO DO: can we avoid recreating the builder object!?
+        import pepr2ds.builder.Builder as builderEngine
+        importlib.reload(builderEngine)
+        self.builder = builderEngine.Builder(self.settings.SETUP, 
+                                             recalculate = self.RECALCULATION, 
+                                             update=False, 
+                                             notebook = self.settings.USING_NOTEBOOK, 
+                                             core=1)
+        self.DATASET = self.builder.structure.add_structural_cluster_info(self.DATASET)
 
     def add_uniprot_basic_info(self):
-        pass
+        self.DATASET = self.builder.sequence.add_uniprotId_Origin(self.DATASET)
 
     def add_prosite_info(self):
-        pass
+        self.DATASET = self.builder.sequence.match_residue_number_with_alignment_position(self.DATASET)
 
     def add_sequences_without_structure(self):
-        pass
+        self.DATASET = self.builder.sequence.add_sequence_in_dataset(self.DATASET)
 
     def add_uniprot_protein_sheet_info(self):
-        pass
+        self.builder.sequence.download_uniprot_data(self.DATASET)
+        self.DATASET = self.builder.sequence.add_info_from_uniprot(self.DATASET)
 
     def add_cluster_uniref_info(self):
-        pass
+        self.DATASET = self.builder.sequence.add_cluster_info(self.DATASET)
 
     def add_conservation(self):
-        pass
+        # TO DO: can we avoid recreating the builder object!?
+        import pepr2ds.builder.Builder as builderEngine
+        importlib.reload(builderEngine)
+        self.builder = builderEngine.Builder(self.settings.SETUP, 
+                                             recalculate = self.RECALCULATION, 
+                                             notebook = self.settings.USING_NOTEBOOK)
+
+        self.DATASET = self.builder.sequence.add_conservation(self.DATASET,
+                                                              gapcutoff=0.8)
 
     def save_dataset(self):
-        pass
+        self.DATASET = self.builder.optimize_size(self.DATASET)
+        self.DATASET = self.DATASET.drop_duplicates(subset=['atom_number',
+                                                            'atom_name',
+                                                            'residue_name',
+                                                            'residue_number',
+                                                            'cathpdb',
+                                                            'chain_id'])
+
+        # save two versions of the dataset: a complete one (with all PDB atoms)
+        # and a light one (only with `CA` and `CB` atoms).  
+        self.builder.save_checkpoint_dataset(self.DATASET,
+                                             self._FULL_DATASET_FILENAME)
+        self.builder.save_checkpoint_dataset(self.DATASET.query("atom_name in ['CA','CB']"),
+                                             self._LIGHT_DATASET_FILENAME)
+
+    # TO DO: does not seem meaningful; consider removing in the future
+    def test_alignment_for_C2DIS_domain(self):
+        # generate alignment file list for C2DIS domain (S95, because everything is just too slow, too much structure)
+        c2dis = self._selectUniquePerCluster(self.DATASET.query("domain== 'PH'"), 
+                                             'S95', 
+                                             'uniref90', 
+                                             withAlignment=False, 
+                                             pdbreference='2da0A00')
+        #pdblist = c2dis.cathpdb.dropna().unique()
+        #print(c2dis)
+        print(self.DATASET.query("atom_name == 'CA' and domain =='PH'").columns)
+        #print(self.DATASET.query("atom_name == 'CA' and domain =='PH' and data_type == 'cathpdb'")[["ASA_res_freesasa_florian","RSA_freesasa_florian","ASA_total_freesasa","ASA_mainchain_freesasa","ASA_sidechain_freesasa","RSA_sidechain_freesasa","RSA_total_freesasa_tien","RSA_sidechain_freesasa_tien"]])
+
+    # TO DO: does not seem necessary; move to an ad-hoc module
+    def _selectUniquePerCluster(self,
+                                df, 
+                                cathCluster, 
+                                Uniref, 
+                                withAlignment=True, 
+                                pdbreference=None,
+                                removeStrand=False):
+        # return a dataset with only 1 datum per choosed cluster
+        if cathCluster not in ["S35", "S60", "S95", "S100"]:
+            raise ValueError('CathCluster given not in ["S35","S60","S95","S100"]')
+
+        if Uniref not in ["uniref50", "uniref90", "uniref100"]:
+            raise ValueError('CathCluster given not in ["uniref50","uniref90","uniref100"]')
+
+        if withAlignment:
+            df = df[~df.alignment_position.isnull()]
+
+        cathdf = df.query("data_type == 'cathpdb'")
+        seqdf = df.query("data_type == 'prosite'")
+
+        def selectUniqueCath(group):
+            uniqueNames = group.cathpdb.unique()
+            if pdbreference:
+                if pdbreference in uniqueNames:
+                    select = pdbreference
+                else:
+                    select = uniqueNames[0]
+            else:
+                select = uniqueNames[0]
+
+            # return group.query("cathpdb == @select")
+            return select
+
+        def selectUniqueUniref(group, exclusion):
+            uniqueNames = group.uniprot_acc.unique()
+            select = uniqueNames[0]
+            # return group.query("uniprot_acc == @select")
+            if select not in exclusion:
+                return select
+
+        # structures prior to sequences
+        dfReprCathNames = cathdf.groupby(["domain", cathCluster]).apply(selectUniqueCath).to_numpy()
+        print(dfReprCathNames)
+        excludeUniref = df.query("cathpdb in @dfReprCathNames").uniprot_acc.unique()
+
+        dfReprUnirefNames = seqdf.groupby(["domain", Uniref]).apply(selectUniqueUniref,exclusion=excludeUniref).to_numpy()
+        dfReprCath = cathdf.query("cathpdb in @dfReprCathNames")
+        dfReprUniref = seqdf.query("uniprot_acc in @dfReprUnirefNames")
+
+        return (pd.concat([dfReprCath, dfReprUniref]))

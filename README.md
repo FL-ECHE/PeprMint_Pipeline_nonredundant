@@ -77,12 +77,15 @@ after running
 mamba info --envs
 ```
 
-Optional: if you don't want your standard terminal to load the conda environment
-by default, enter
+Optional: if you want your standard terminal to load the conda/mamba environment
+by default (otherwise, you need to run `mamba activate` every time you plan to
+use it), enter
 
 ```bash
-conda config --set auto_activate_base False
+conda config --set auto_activate_base true
 ```
+
+
 
 ## Setup (under construction)
 This corresponds to the dependencies of the Peprmint dataset creation 
@@ -100,13 +103,14 @@ jupyter nbextension enable --py widgetsnbextension ???
 jupyter labextension install nglview-js-widgets ???
 ```
 
+After downloading/cloning this repository, one may create the adequate 
+environment for this project either within jupyter (choose the file 
+`environment.yml`) or directly in the terminal: navigate (`cd ...`) to the 
+corresponding path and run
+
 ```bash
 mamba env create -f environment.yml
 ```
-
-**NB!** It should be possible to use more recent versions of panda (e.g. to 
-allow mamba update setuptools) than 1.1.5
-
 
 
 
