@@ -66,11 +66,16 @@ class DataRetriever:
         except:
             self.PARALLEL = False
 
-    def run(self):
-        self.retrieve_cath_domains()
-        self.retrieve_uniprot_to_pdb_correspondence()
-        self.retrieve_prosite()
-        self.retrieve_cath_pdb_files()
+    def run(self) -> bool:
+        if self.settings.FORMER_WORKING_DIR:
+            print('Error: working directory already exists; remove it if you want to fetch all data from scratch with DataRetriever.run()')
+            return False
+        else:
+            self.retrieve_cath_domains()
+            self.retrieve_uniprot_to_pdb_correspondence()
+            self.retrieve_prosite()
+            self.retrieve_cath_pdb_files()
+            return True
 
     def retrieve_cath_domains(self):
         # TO DO: release 4_2_0 or latest?

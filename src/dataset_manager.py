@@ -109,7 +109,7 @@ class DatasetManager:
             return True
 
     def build(self, recalculate: Optional[bool] = None):
-        # runs each step in the creation of the dataset (as of Notebook #02)
+        # runs each step in the creation of the dataset (as of Notebook #2)
         if recalculate is not None:
             self.RECALCULATION = recalculate
 
@@ -129,7 +129,7 @@ class DatasetManager:
         print(list(self.DATASET.domain.unique()))
 
     """
-    ### All methods below just encapsulate the steps in Notebook #02
+    ### All methods below just encapsulate the steps in Notebook #2
     """
 
     def clean(self):

@@ -50,3 +50,13 @@ class NotebookHandle:
         InteractiveShell.ast_node_interactivity = "all"
         get_ipython().run_line_magic('config', "InlineBackend.figure_format ='svg' #better quality figure figure")
         print("Notebook settings loaded (for dataset creation)")
+
+    def alphafold_utils_options(self):
+        # Notebook #3 settings
+        from IPython.display import display, Markdown, clear_output
+        
+        from IPython.core.interactiveshell import InteractiveShell
+        InteractiveShell.ast_node_interactivity = "all"
+        #%config InlineBackend.figure_format ='svg' #better quality figure
+        
+        print("Notebook settings loaded (for alphafold data download)")

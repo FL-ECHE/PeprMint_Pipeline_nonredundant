@@ -49,6 +49,7 @@ import sys
 from src.settings import Settings
 from src.data_retriever import DataRetriever
 from src.dataset_manager import DatasetManager
+from src.alphafold_utils import AlphaFoldUtils
 
 def main():
     # notebook #0
@@ -61,12 +62,12 @@ def main():
 
     # notebook #2
     dataset_manager = DatasetManager(global_settings)
+    #dataset_manager.build(recalculate=False)   # build dataset from fetched data
+    dataset_manager.load_light_dataset()   # load dataset built on a previous run
 
-    # building dataset from data fetched above
-    #dataset_manager.build(recalculate=False)
-
-    # loading dataset built on a previous run
-    dataset_manager.load_light_dataset()
+    # notebook #3
+    alphafold_utils = AlphaFoldUtils(global_settings)
+    alphafold_utils.run(dataset_manager.DATASET)
 
 
 if __name__ == '__main__':

@@ -33,45 +33,9 @@ class Sequence(Attributes):
 
     def add_uniprotId_Origin(self, DATASET):
         def get_uniprotID_from_ACC(uniprot_accs):
-            """
-            Search in uniprot for GENEID from uniprot_acc :
-            args:
-                pdbs <list> : list of all pdb names
-            return:
-                mapping <dict> : mapping of {pdb:uniprot}
-            """
-
-            #### DEPRECATED CODE ####
-            #### Due to an API change, one has now to submit a job and not only do a get-request. See Uniprot.py
-            """
-            url = "https://www.uniprot.org/uploadlists/"
-
-            params = {
-                "from": "ACC",
-                "to": "ID",
-                "format": "tab",
-                "query": ",".join(uniprot_accs),
-            }
-            data = urllib.parse.urlencode(params)
-            data = data.encode("utf-8")
-            req = urllib.request.Request(url, data)
-            with urllib.request.urlopen(req) as f:
-                response = f.read()
-
-            # Yes I know... not understandable, but since "response" is a binary text of the results, this is just
-            # to convert the result in a dictionnary... :-)
-            mapping = {}
-
-            twoByTwo = list(zip(*[iter(response.decode("utf-8").split()[2:])] * 2))
-
-            for uniprot, gene in twoByTwo:
-                mapping[uniprot] = gene
-
-            return mapping
-            """
-            ###########################
-
-            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", to_db = "UniProtKB", ids= uniprot_accs)
+            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", 
+                                       to_db = "UniProtKB", 
+                                       ids = uniprot_accs)
             
             if check_id_mapping_results_ready(job_id):
                 link = get_id_mapping_results_link(job_id)
@@ -91,50 +55,10 @@ class Sequence(Attributes):
         return DATASET
 
     def add_cluster_info(self, DATASET):
-        def get_unirefID(uniprotAccs, to="NF90"):
-            """
-            Search in uniprot for GENEID from uniprot_acc :
-            database identification
-            https://www.uniprot.org/help/api_idmapping
-            args:
-                pdbs <list> : list of all pdb names
-            return:
-                mapping <dict> : mapping of {pdb:uniprot}
-            """
-
-            #### DEPRECATED CODE ####
-            #### Due to an API change, one has now to submit a job and not only do a get-request. See Uniprot.py
-            """
-            url = "https://www.uniprot.org/uploadlists/"
-
-            params = {
-                "from": "ACC+ID",
-                "to": to,
-                "format": "tab",
-                "query": ",".join(uniprotAccs),
-            }
-            data = urllib.parse.urlencode(params)
-            data = data.encode("utf-8")
-            req = urllib.request.Request(url, data)
-            with urllib.request.urlopen(req) as f:
-                response = f.read()
-
-            # Yes I know... not understandable, but since "response" is a binary text of the results, this is just
-            # to convert the result in a dictionnary... :-)
-            mapping = {}
-
-            twoByTwo = list(zip(*[iter(response.decode("utf-8").split()[2:])] * 2))
-
-            for uniprot, uniref in twoByTwo:
-                mapping[uniprot] = uniref.split('_')[1]
-
-
-
-            return mapping
-            """
-            ###########################
-
-            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", to_db = to,ids=uniprotAccs)
+        def get_unirefID(uniprotAccs, to="UniRef90"):
+            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", 
+                                       to_db = to,
+                                       ids = uniprotAccs)
             
             if check_id_mapping_results_ready(job_id):
                 link = get_id_mapping_results_link(job_id)
@@ -142,7 +66,6 @@ class Sequence(Attributes):
                 #print(results["results"][1:2]) Uncomment if you want to see the format
                 mapping= {x["from"] : x["to"]["representativeMember"]["accessions"][0] for x in results["results"]}
                 return mapping
-
 
         def try_fetch_database(uniprotaccs, db, iteration=0):
             import time
@@ -159,7 +82,7 @@ class Sequence(Attributes):
                 else:
                     print("Too many tries... Try again later... Maybe use a VPN (UiB or another one)")
                     raise
-
+        
         uniprotaccs = DATASET.uniprot_acc.dropna().unique()
         uniprotaccs = uniprotaccs[np.logical_not(uniprotaccs == np.nan)]
         # print("> Database queries, if fail, start again later")

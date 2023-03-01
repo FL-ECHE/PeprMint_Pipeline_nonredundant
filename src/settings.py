@@ -64,8 +64,9 @@ class Settings:
         try:
             print('Working directory: {0}'.format(cwd))
             os.makedirs(cwd)
+            self.FORMER_WORKING_DIR = False
         except FileExistsError:
-            print('Working directory already exists - calling run() from DataRetriever will rewrite data!')
+            self.FORMER_WORKING_DIR = True
 
         self.PEPRMINT_FOLDER = cwd
         self.SETUP = {}   # dictionary with ALL parameters
