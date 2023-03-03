@@ -67,7 +67,9 @@ def main():
 
     # notebook #3
     alphafold_utils = AlphaFoldUtils(global_settings)
-    alphafold_utils.run(dataset_manager.DATASET)
+    alphafold_utils.run(dataset_manager.DATASET,
+                        EXCLUDE_LIST = ["Q54C71","O94827",'Q54C71','Q22070','P39960','Q62077', 'Q06839'],
+                        EXCLUDE_DOMAIN = ["FYVE"])
 
 
 if __name__ == '__main__':

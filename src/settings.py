@@ -141,6 +141,16 @@ class Settings:
         self.config_file['DATASET_MANAGER'] = {}
         self.config_file['DATASET_MANAGER']['recalculate'] = str(False)
 
+        self.config_file['ALPHAFOLD_UTILS'] = {}
+        self.config_file['ALPHAFOLD_UTILS']['rebuild'] = str(True)
+        self.config_file['ALPHAFOLD_UTILS']['use_uniprot_boundaries'] = str(True)
+        self.config_file['ALPHAFOLD_UTILS']['use_all_AFmodels'] = str(True)
+        self.config_file['ALPHAFOLD_UTILS']['AF_pdbs_url_prefix'] = "https://alphafold.ebi.ac.uk/files/AF-"
+        self.config_file['ALPHAFOLD_UTILS']['AF_pdbs_url_suffix'] = "-F1-model_v1.pdb"
+        self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_prefix'] = "https://www.ebi.ac.uk/interpro/api/entry/"
+        self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_middle'] = "/protein/reviewed/"
+        self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_suffix'] = "/?page_size=200"
+        
         with open(path, 'w') as configfile:
             self.config_file.write(configfile)
 
@@ -151,7 +161,7 @@ class Settings:
     def define_folders(self):
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
         self.CATHFOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/"
-        self.ALFAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alfafold/"
+        self.ALPHAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alphafold/"
         self.PROSITEFOLDER = f"{self.PEPRMINT_FOLDER}/databases/prosite/"
         self.UNIPROTFOLDER = f"{self.PEPRMINT_FOLDER}/databases/uniprot/"
         self.FIGURESFOLDER = f"{self.PEPRMINT_FOLDER}/figures/"
@@ -160,7 +170,7 @@ class Settings:
         self.SETUP["WORKDIR"] = self.WORKDIR
         self.SETUP["CATHFOLDER"] = self.CATHFOLDER
         self.SETUP["PROSITEFOLDER"] = self.PROSITEFOLDER
-        self.SETUP["ALFAFOLDFOLDER"] = self.ALFAFOLDFOLDER
+        self.SETUP["ALPHAFOLDFOLDER"] = self.ALPHAFOLDFOLDER
         self.SETUP["UNIPROTFOLDER"] = self.UNIPROTFOLDER
         self.SETUP["FIGURESFOLDER"] = self.FIGURESFOLDER
 
@@ -174,8 +184,8 @@ class Settings:
             os.makedirs(self.WORKDIR)
         if not os.path.exists(self.FIGURESFOLDER):
             os.makedirs(self.FIGURESFOLDER)
-        if not os.path.exists(self.ALFAFOLDFOLDER):
-            os.makedirs(self.ALFAFOLDFOLDER)
+        if not os.path.exists(self.ALPHAFOLDFOLDER):
+            os.makedirs(self.ALPHAFOLDFOLDER)
         if not os.path.exists(self.UNIPROTFOLDER):
             os.makedirs(self.UNIPROTFOLDER)
         if not os.path.exists(self.PROSITEFOLDER):
