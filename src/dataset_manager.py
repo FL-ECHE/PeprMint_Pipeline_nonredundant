@@ -51,6 +51,7 @@ class DatasetManager:
 
     def __init__(self, global_settings: Settings):
         self.settings = global_settings
+        self.DATASET = None
 
         self.RECALCULATION = self.settings.config_file.getboolean(
             'DATASET_MANAGER', 'recalculate')

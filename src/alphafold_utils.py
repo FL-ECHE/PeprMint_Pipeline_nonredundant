@@ -49,6 +49,7 @@ from scipy.spatial import ConvexHull
 
 from biopandas.pdb import PandasPdb
 from Bio import AlignIO
+from Bio.PDB import PDBParser
 
 import os
 import glob
@@ -61,6 +62,7 @@ from tqdm import tnrange, tqdm
 from typing import Optional
 
 from src.settings import Settings
+from src.dataset_manager import DatasetManager
 from src.notebook_handle import NotebookHandle
 
 class AlphaFoldUtils:
@@ -97,15 +99,16 @@ class AlphaFoldUtils:
             self.settings.NOTEBOOK_HANDLE.alphafold_utils_options()
 
     def run(self,
-            df: pd.DataFrame,
+            dm: DatasetManager,
             EXCLUDE_LIST: Optional[list] = None,
             EXCLUDE_DOMAIN: Optional[list] = None):
-        # runs each step to fetch and prepare alphafold data (as of Notebook #3)
-        self.dataset = df
 
+        # fetch and prepare alphafold data (as of Notebook #3)
+        print(f"Preparing AlphaFold data")
+
+        self.dataset = dm.DATASET
         self.REGEX = re.compile("^(\w+)\|(\w+)\/(\d+)-(\d+)")
 
-        print(f"Preparing AlphaFold data")
         if EXCLUDE_LIST is not None:
             print("User option: excluding list ", end='')
             print(EXCLUDE_LIST)
@@ -118,18 +121,21 @@ class AlphaFoldUtils:
         else:
             EXCLUDE_DOMAIN = []
 
-        self.process_all_domains(EXCLUDE_LIST, EXCLUDE_DOMAIN)
-        self.align_fasta_files()
-        self.save_PH_domains_from_alphafold()
+        self.extract_domains_seqs_from_alphafold(EXCLUDE_LIST, EXCLUDE_DOMAIN)
+        
+        # TO DO: move these to a proper method
+        #self._test_printing_msa_dir()
+        #self._test_query()
+        self.dataset.groupby("cathpdb")
+
 
     """
     ### All methods below just encapsulate the steps in Notebook #3
     """
 
-    def process_all_domains(self, EXCLUDE_LIST, EXCLUDE_DOMAIN):
-        # TO DO: switch these assignments back
-        #domains = self.dataset.domain.unique()
-        domains = ['PLA']
+    def extract_domains_seqs_from_alphafold(self, EXCLUDE_LIST, EXCLUDE_DOMAIN):
+        domains = self.dataset.domain.unique()
+        #domains = ['PLA']
 
         for domain in domains:
             if domain in EXCLUDE_DOMAIN:
@@ -145,6 +151,7 @@ class AlphaFoldUtils:
 
             boundaries_prosite = self._get_prosite_boundaries_dict(domain)
 
+            # 1. fetch PDB files from AlphaFold
             if self.use_all_AFmodels:
                 prosite_uniprot_acc = list(boundaries_prosite.keys()) 
                 uniprot_acc_cathpdb = [acc for acc in uniprot_acc_cathpdb if acc in prosite_uniprot_acc]
@@ -157,23 +164,26 @@ class AlphaFoldUtils:
                 seqs_with_model, seqs_without_model = self._fetch_pdb_alphafold(seqs_no_pdb, 
                                                                                 domain)
 
+            # 2. extract the corresponding domain into a separate PDB
             for uniprot_id in tqdm(seqs_with_model, desc = "processing"):
                 if uniprot_id in EXCLUDE_LIST:
                     continue
 
-                pdbfile =  f"{self.settings.ALPHAFOLDFOLDER}/{domain}/raw/{uniprot_id}.pdb"
+                raw_pdb_path = f"{self.settings.ALPHAFOLDFOLDER}/{domain}/raw/{uniprot_id}.pdb"
+                extracted_pdb_path = f"{self.settings.ALPHAFOLDFOLDER}/{domain}/extracted/{uniprot_id}.pdb"
                 # structure = PDBParser().get_structure('uniprot_id',)
 
-                if os.path.isfile(pdbfile) and self.REBUILD == False:
+                # TO DO: I think this should be extracted_pdb_path - check later
+                if os.path.isfile(raw_pdb_path) and self.REBUILD == False:
                     continue   # skip the file if it already exists
 
                 query = self._get_domain_fragment_query(uniprot_id, domain, boundaries_prosite)
                 if query == None:
                     continue
 
-                ppdb = PandasPdb().read_pdb(pdbfile)
+                ppdb = PandasPdb().read_pdb(raw_pdb_path)
                 ppdb.df["ATOM"] = ppdb.df["ATOM"].query(f"{query}")
-                ppdb.to_pdb(f"{self.settings.ALPHAFOLDFOLDER}/{domain}/extracted/{uniprot_id}.pdb")
+                ppdb.to_pdb(extracted_pdb_path)
 
     def _get_prosite_boundaries_dict(self, domain):
         boundaries = {}
@@ -232,31 +242,27 @@ class AlphaFoldUtils:
 
         rate = len(nomodels)/len(uniprotids) if len(uniprotids) > 0 else 0
         print(f"{len(nomodels)} out of {len(uniprotids)} without alphafold2 models ({rate*100:.2f}%)")
+
         return withmodels, nomodels
 
     def _get_domain_fragment_query(self, uniprot_acc, domain, boundaries_prosite):
         start_PS, end_PS = boundaries_prosite[uniprot_acc]
         starts_ends = [boundaries_prosite[uniprot_acc]]
 
+        # TO DO: this looks wrong... starts_ends is REPLACED in each iteration... shouldn't it be EXTENDED?
+        # why bother if nothing changes between iterations (e.g. method returns)
         if self.settings.DOMAIN_INTERPRO_REFINE[domain] == True:
-            if domain == "PLA":
-                source = 'cathgene3d'
-            else:
-                source = 'ssf'
+            source = 'cathgene3d' if domain == "PLA" else 'ssf'
 
             interpro = self._get_json(uniprot_acc, domain, source)
-            
-            if interpro == None:
+            if interpro is None:
                 return None
 
-            QueryString = None
-            
             for result in interpro["results"]:
                 if result["metadata"]["accession"] == self.settings.DOMAIN_INTERPRO[domain]:
                     entry_protein_locations = result["proteins"][0]["entry_protein_locations"]
                     for entry in entry_protein_locations:
-                        # get the number of truncation in the domain
-                        nfrag = len(entry['fragments'])
+                        nfrag = len(entry['fragments'])   # number of truncations in the domain
                         
                         if domain == 'PLA':
                             # special case for PLA, we will ignore PROSITE annotation that are actually wrong
@@ -267,24 +273,21 @@ class AlphaFoldUtils:
                         else:
                             if nfrag >= 2 and ( entry['fragments'][0].get('start') - 50 <= start_PS <= entry['fragments'][0].get('start')+50):
                                 # if truncated domain AND correspond to the prosite domain
-                                print(f"splitting {domain}-{uniprot_acc}")
+                                #print(f"splitting {domain}-{uniprot_acc}")
                                 queries = []
                                 starts_ends = []
                                 for frag in entry['fragments']:
                                     s = int(frag.get("start"))
                                     e = int(frag.get("end"))
                                     starts_ends.append([s,e])
-                                if use_uniprot_boundaries == True:
+                                if self.use_uniprot_boundaries == True:
                                     starts_ends[0][0] = start_PS
                                     starts_ends[-1][-1] = end_PS
                             else:
                                 # use prosite fragment
                                 starts_ends = [[start_PS, end_PS]]
-
-                    QueryString = " or ".join([f"({x} <= residue_number <= {y})" for x,y in starts_ends])
-        else:
-            QueryString = " or ".join([f"({x} <= residue_number <= {y})" for x,y in starts_ends])
         
+        QueryString = " or ".join([f"({x} <= residue_number <= {y})" for x,y in starts_ends])
         return QueryString
 
     def _get_json(self, uniprot_acc, domain, source='ssf'):
@@ -314,7 +317,7 @@ class AlphaFoldUtils:
             with open(jsonfile,'w') as out:
                 json.dump(interpro, out, indent=2)
                 
-        return(interpro)
+        return interpro
 
     def __request_URL(self, link, trial=1):
         try:
@@ -330,8 +333,25 @@ class AlphaFoldUtils:
                 sleep(10)
                 return self.__request_URL(link, trial=trial+1)
 
-    def align_fasta_files(self):
-        pass
+    # TO DO: remove this if OK with the two missing columns: 'add_sequence' and 'format'
+    def _test_printing_msa_dir(self):
+        for domain in self.dataset.domain.unique():
+            prosite_ids = self.settings.DOMAIN_PROSITE[domain]
+            if type(prosite_ids) != type([]):
+                prosite_ids = [prosite_ids]
+            for msafile in prosite_ids:
+                msafilepath = f"{self.settings.PROSITEFOLDER}/msa/{msafile}.msa"
+                msa = AlignIO.read(msafilepath, 'fasta')
+                print(dir(msa))
 
-    def save_PH_domains_from_alphafold(self):
-        pass
+    def _test_query(self):
+        boundaries = self._get_prosite_boundaries_dict("PLA")
+        query = self._get_domain_fragment_query("Q9Z0L3", 'PLA', boundaries)
+        assert(query == "(314 <= residue_number <= 435)")
+
+        boundaries = self._get_prosite_boundaries_dict("PH")
+        query = self._get_domain_fragment_query('Q55E26', "PH", boundaries)
+        assert(query == "(876 <= residue_number <= 942) or (994 <= residue_number <= 1026)")
+        #query = self._get_domain_fragment_query('F1LXF1', "PH", boundaries)
+        query = self._get_domain_fragment_query("Q54C71", "PH", boundaries)
+        assert(query == "(601 <= residue_number <= 822)")
