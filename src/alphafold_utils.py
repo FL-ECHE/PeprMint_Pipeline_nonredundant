@@ -62,7 +62,6 @@ from tqdm import tnrange, tqdm
 from typing import Optional
 
 from src.settings import Settings
-from src.dataset_manager import DatasetManager
 from src.notebook_handle import NotebookHandle
 
 class AlphaFoldUtils:
@@ -99,21 +98,21 @@ class AlphaFoldUtils:
             self.settings.NOTEBOOK_HANDLE.alphafold_utils_options()
 
     def run(self,
-            dm: DatasetManager,
-            EXCLUDE_LIST: Optional[list] = None,
+            df: pd.DataFrame,
+            EXCLUDE_SEQS: Optional[list] = None,
             EXCLUDE_DOMAIN: Optional[list] = None):
 
         # fetch and prepare alphafold data (as of Notebook #3)
         print(f"Preparing AlphaFold data")
 
-        self.dataset = dm.DATASET
+        self.dataset = df
         self.REGEX = re.compile("^(\w+)\|(\w+)\/(\d+)-(\d+)")
 
-        if EXCLUDE_LIST is not None:
+        if EXCLUDE_SEQS is not None:
             print("User option: excluding list ", end='')
-            print(EXCLUDE_LIST)
+            print(EXCLUDE_SEQS)
         else:
-            EXCLUDE_LIST = []
+            EXCLUDE_SEQS = []
 
         if EXCLUDE_DOMAIN is not None:
             print("User option: excluding domain ", end='')
@@ -121,7 +120,7 @@ class AlphaFoldUtils:
         else:
             EXCLUDE_DOMAIN = []
 
-        self.extract_domains_seqs_from_alphafold(EXCLUDE_LIST, EXCLUDE_DOMAIN)
+        self.extract_domains_seqs_from_alphafold(EXCLUDE_SEQS, EXCLUDE_DOMAIN)
         
         # TO DO: move these to a proper method
         #self._test_printing_msa_dir()
@@ -133,7 +132,7 @@ class AlphaFoldUtils:
     ### All methods below just encapsulate the steps in Notebook #3
     """
 
-    def extract_domains_seqs_from_alphafold(self, EXCLUDE_LIST, EXCLUDE_DOMAIN):
+    def extract_domains_seqs_from_alphafold(self, EXCLUDE_SEQS, EXCLUDE_DOMAIN):
         domains = self.dataset.domain.unique()
         #domains = ['PLA']
 
@@ -166,7 +165,7 @@ class AlphaFoldUtils:
 
             # 2. extract the corresponding domain into a separate PDB
             for uniprot_id in tqdm(seqs_with_model, desc = "processing"):
-                if uniprot_id in EXCLUDE_LIST:
+                if uniprot_id in EXCLUDE_SEQS:
                     continue
 
                 raw_pdb_path = f"{self.settings.ALPHAFOLDFOLDER}/{domain}/raw/{uniprot_id}.pdb"

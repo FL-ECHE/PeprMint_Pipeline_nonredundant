@@ -49,7 +49,6 @@ import sys
 from src.settings import Settings
 from src.data_retriever import DataRetriever
 from src.dataset_manager import DatasetManager
-from src.alphafold_utils import AlphaFoldUtils
 from src.figure_generator import FigureGenerator
 
 def main():
@@ -67,18 +66,21 @@ def main():
     dataset_manager.load_light_dataset()   # load dataset built on a previous run
 
     # notebook #3
-    alphafold_utils = AlphaFoldUtils(global_settings)
+    # not needed if already computed earlier
     """
-    alphafold_utils.run(dataset_manager,            # fetch AF data for domains here
-                        EXCLUDE_LIST = ["Q54C71",   # optional: sequences to skip
-                                        "O94827",
-                                        'Q54C71',
-                                        'Q22070',
-                                        'P39960',
-                                        'Q62077',
-                                        'Q06839'],
-                        EXCLUDE_DOMAIN = ["FYVE"])  # optional: domain to skip
+    dataset_manager.add_alphafold_data(EXCLUDE_SEQS = ["Q54C71",    # optional
+                                                       "O94827",
+                                                       "Q54C71",
+                                                       "Q22070",
+                                                       "P39960",
+                                                       "Q62077",
+                                                       "Q06839"],
+                                       EXCLUDE_DOMAIN = ["FYVE"])   # optional
     """
+
+    # auxiliary tools notebook for interfacial binding sites (IBS) tagging
+    # not needed if already computed earlier
+    dataset_manager.add_IBS_data()
 
     # notebook #4
     figure_gen = FigureGenerator(global_settings)

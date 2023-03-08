@@ -47,11 +47,19 @@ from typing import Optional
 from src.settings import Settings
 from src.notebook_handle import NotebookHandle
 
+# modules for objects in Notebook #3 and the auxiliary tools one (for IBS)
+from src.alphafold_utils import AlphaFoldUtils
+from src.ibs_tagging import IBSTagging
+
+
 class DatasetManager:
 
     def __init__(self, global_settings: Settings):
         self.settings = global_settings
+
         self.DATASET = None
+        self.alphafold_utils = None
+        self.IBS_tagger = None
 
         self.RECALCULATION = self.settings.config_file.getboolean(
             'DATASET_MANAGER', 'recalculate')
@@ -128,6 +136,23 @@ class DatasetManager:
         print("\nDataset built successfully")
         print("Dataset domains: ")
         print(list(self.DATASET.domain.unique()))
+
+    def add_alphafold_data(self,
+                           EXCLUDE_SEQS: Optional[list] = None,
+                           EXCLUDE_DOMAIN: Optional[list] = None):
+
+        # Fetches AF data for domains in the current dataset
+        # Originally on Notebook #3; ported to alphafold_utils.py
+        self.alphafold_utils = AlphaFoldUtils(self.settings)
+        self.alphafold_utils.run(self.DATASET,
+                                 EXCLUDE_SEQS,
+                                 EXCLUDE_DOMAIN)
+
+    def add_IBS_data(self):
+        # Interfacial binding sites (IBS) tagging in the dataset
+        # Originally on the "tools notebooks"; ported to ibs_tagging.py
+        self.IBS_tagger = IBSTagging(self.settings)
+        self.IBS_tagger.run(self.DATASET)
 
     """
     ### All methods below just encapsulate the steps in Notebook #2

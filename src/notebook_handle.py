@@ -72,3 +72,13 @@ class NotebookHandle:
         get_ipython().run_line_magic('matplotlib', 'inline')
         
         print("Notebook settings loaded (for figure generation)")
+
+    def ibs_options(self):
+        # Notebook "tools/GENERATE_IBS_DATASETS" settings
+        from IPython.display import display, Markdown, clear_output
+
+        from IPython.core.interactiveshell import InteractiveShell
+        InteractiveShell.ast_node_interactivity = "all"
+        #%config InlineBackend.figure_format ='svg' #better quality figure figure
+
+        print("Notebook settings loaded (for IBS tagging)")
