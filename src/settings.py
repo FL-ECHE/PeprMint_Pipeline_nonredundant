@@ -151,6 +151,12 @@ class Settings:
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_middle'] = "/protein/reviewed/"
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_suffix'] = "/?page_size=200"
         
+        self.config_file['FIGURE_GENERATION'] = {}
+        self.config_file['FIGURE_GENERATION']['recalculate'] = str(False)
+        
+        # not recommended setting include_alphafold_from_the_beginning to true because it is added later
+        self.config_file['FIGURE_GENERATION']['include_alphafold_from_the_beginning'] = str(False)
+
         with open(path, 'w') as configfile:
             self.config_file.write(configfile)
 

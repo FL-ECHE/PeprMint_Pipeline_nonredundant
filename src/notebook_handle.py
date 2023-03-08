@@ -60,3 +60,15 @@ class NotebookHandle:
         #%config InlineBackend.figure_format ='svg' #better quality figure
         
         print("Notebook settings loaded (for alphafold data download)")
+
+    def figure_generator_options(self):
+        # Notebook #4 settings
+        from IPython.display import display, Markdown, clear_output
+
+        from IPython.core.interactiveshell import InteractiveShell
+        InteractiveShell.ast_node_interactivity = "all"
+        #%config InlineBackend.figure_format ='svg' #better quality figure figure
+
+        get_ipython().run_line_magic('matplotlib', 'inline')
+        
+        print("Notebook settings loaded (for figure generation)")

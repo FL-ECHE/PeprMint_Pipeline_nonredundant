@@ -50,6 +50,7 @@ from src.settings import Settings
 from src.data_retriever import DataRetriever
 from src.dataset_manager import DatasetManager
 from src.alphafold_utils import AlphaFoldUtils
+from src.figure_generator import FigureGenerator
 
 def main():
     # notebook #0
@@ -78,6 +79,9 @@ def main():
                                         'Q06839'],
                         EXCLUDE_DOMAIN = ["FYVE"])  # optional: domain to skip
     """
+
+    # notebook #4
+    figure_gen = FigureGenerator(global_settings)
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),
