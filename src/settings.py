@@ -121,7 +121,7 @@ class Settings:
         return True
 
     def _write_default_config_file(self, path: str):
-        self.config_file = configparser.ConfigParser()
+        self.config_file = configparser.ConfigParser(allow_no_value=True)
 
         self.config_file['GENERAL'] = {}
         # default folder: a new one in the current working directory
@@ -151,6 +151,17 @@ class Settings:
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_middle'] = "/protein/reviewed/"
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_suffix'] = "/?page_size=200"
         
+        self.config_file['IBS_TAGGING'] = {}
+        self.config_file['IBS_TAGGING']['comparison_mode'] = str(False)
+        
+        comment_on_data_type = "# data_type can be cath, alfafold, or cath+af (NB! these are pepr2ds settings)"
+        self.config_file.set('IBS_TAGGING', comment_on_data_type)
+        self.config_file['IBS_TAGGING']['data_type'] = "cath"
+
+        self.config_file['IBS_TAGGING']['cluster_level'] = "S100"
+        self.config_file['IBS_TAGGING']['uniref_level'] = "uniref100"
+        self.config_file['IBS_TAGGING']['z_axis_level'] = "0"
+
         self.config_file['FIGURE_GENERATION'] = {}
         self.config_file['FIGURE_GENERATION']['recalculate'] = str(False)
         

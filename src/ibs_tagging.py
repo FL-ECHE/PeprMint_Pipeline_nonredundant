@@ -55,6 +55,10 @@ import urllib
 import glob
 from urllib.error import HTTPError
 
+import importlib
+import pepr2ds
+from pepr2ds.dataset.tagibs import Dataset
+
 from src.settings import Settings
 from src.notebook_handle import NotebookHandle
 
@@ -62,12 +66,20 @@ class IBSTagging:
 
     def __init__(self, global_settings: Settings):
         self.settings = global_settings
+
+        self.data_type = self.settings.config_file['IBS_TAGGING']['data_type']
+        self.cluster_level = self.settings.config_file['IBS_TAGGING']['cluster_level']
+        self.uniref_level = self.settings.config_file['IBS_TAGGING']['uniref_level']
+        self.z_axis_level = self.settings.config_file.getint(
+            'IBS_TAGGING','z_axis_level')
+        self.comparison_mode = self.settings.config_file.getboolean(
+            'IBS_TAGGING', 'comparison_mode')
+
+        self.alignment_folder = 'cath' if self.data_type == "cath" else 'aligned_cath-AF'
+
         self.dataset = None
 
         self._libs_setup()
-
-        # TO DO:
-        # read settings: type of data, clustering level, uniref level, z axis level, COMPARISONMODE
 
     def _libs_setup(self):
         # IPython
@@ -107,7 +119,23 @@ class IBSTagging:
 
     # Set of Uniref structures to take for comparison test (between AF and Cath)
     def _get_uniprot_in_common(self, domain):
-        pass
+        """
+        tmp = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
+
+        cathcluster_uniprot = tmp.selectUniquePerCluster(
+                self.dataset.query("domain == @domain and data_type == 'cathpdb'"),
+                'S100',
+                self.uniref_level).uniprot_acc.unique()
+        AFcluster_uniprot = tmp.selectUniquePerCluster(
+                self.dataset.query("domain == @domain and data_type == 'alfafold'"),
+                'S100',
+                self.uniref_level).uniprot_acc.unique()
+        """
+        cathcluster_uniprot = self.dataset.query("domain == @domain and data_type == 'cathpdb'").uniprot_acc.unique()
+        AFcluster_uniprot = self.dataset.query("domain == @domain and data_type == 'alfafold'").uniprot_acc.unique()
+
+        structures_in_common = list(set(AFcluster_uniprot).intersection(cathcluster_uniprot))
+        return structures_in_common
 
     # Prepare Exclusion of PTB and other domains
     def _PH_domain_preprocessing(self):
