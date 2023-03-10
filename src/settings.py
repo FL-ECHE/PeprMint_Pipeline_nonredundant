@@ -154,7 +154,7 @@ class Settings:
         self.config_file['IBS_TAGGING'] = {}
         self.config_file['IBS_TAGGING']['comparison_mode'] = str(False)
         
-        comment_on_data_type = "# data_type can be cath, alfafold, or cath+af (NB! these are pepr2ds settings)"
+        comment_on_data_type = "# data_type can be cath, alphafold, or cath+af (NB! these are pepr2ds settings)"
         self.config_file.set('IBS_TAGGING', comment_on_data_type)
         self.config_file['IBS_TAGGING']['data_type'] = "cath"
 

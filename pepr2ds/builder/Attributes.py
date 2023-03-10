@@ -56,7 +56,7 @@ class Attributes():
         self.PEPRMINT_FOLDER = peprmint_folder
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
         self.CATHFOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/"
-        self.ALFAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alfafold/"
+        self.ALPHAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alphafold/"
         self.PROSITEFOLDER = f"{self.PEPRMINT_FOLDER}/databases/prosite/"
         self.UNIPROTFOLDER = f"{self.PEPRMINT_FOLDER}/databases/uniprot/"
         self.FIGURESFOLDER = f"{self.PEPRMINT_FOLDER}/figures/"

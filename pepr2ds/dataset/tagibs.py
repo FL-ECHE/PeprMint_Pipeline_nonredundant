@@ -168,10 +168,10 @@ class Dataset():
 
         if data_type == 'cath':
             df = df.query("data_type == 'cathpdb'")
-        elif data_type == 'alfafold':
-            df = df.query("data_type == 'alfafold'")
+        elif data_type == 'alphafold':
+            df = df.query("data_type == 'alphafold'")
         elif data_type == 'cath+af':
-            df = df.query("data_type in ['cathpdb','alfafold']")
+            df = df.query("data_type in ['cathpdb','alphafold']")
 
 
         df["matchIndex"] = list(range(len(df)))
@@ -387,7 +387,7 @@ class Dataset():
             df = df[~df.alignment_position.isnull()]
 
         cathdf = df.query("data_type == 'cathpdb'")
-        seqdf = df.query("data_type == 'prosite' or data_type == 'alfafold'")
+        seqdf = df.query("data_type == 'prosite' or data_type == 'alphafold'")
 
         def selectUniqueCath(group):
             uniqueNames = group.cathpdb.unique()

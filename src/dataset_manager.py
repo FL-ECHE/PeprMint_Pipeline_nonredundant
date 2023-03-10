@@ -57,6 +57,9 @@ class DatasetManager:
     def __init__(self, global_settings: Settings):
         self.settings = global_settings
 
+        self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
+        self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
+
         self.DATASET = None
         self.alphafold_utils = None
         self.IBS_tagger = None
@@ -65,7 +68,6 @@ class DatasetManager:
             'DATASET_MANAGER', 'recalculate')
 
         self._libs_setup()
-        self._pepr2ds_setup()
 
     def _libs_setup(self):
         # Pandas
@@ -78,18 +80,6 @@ class DatasetManager:
         # IPython
         if self.settings.USING_NOTEBOOK:
             self.settings.NOTEBOOK_HANDLE.dataset_manager_options()
-
-    def _pepr2ds_setup(self):
-        self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
-        self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
-
-        import pepr2ds.builder.Builder as builderEngine
-        importlib.reload(builderEngine)
-        self.builder = builderEngine.Builder(self.settings.SETUP, 
-                                             recalculate = self.RECALCULATION,
-                                             update = False,
-                                             notebook = self.settings.USING_NOTEBOOK,
-                                             core = 1)
 
     def load_full_dataset(self) -> bool:
         # loads the dataset built in a previous run (this full version is NOT 
@@ -122,6 +112,8 @@ class DatasetManager:
         if recalculate is not None:
             self.RECALCULATION = recalculate
 
+        self._pepr2ds_setup()
+
         self.clean()
         self.compute_protusion()
         self.add_cluster_structural_info()
@@ -136,6 +128,8 @@ class DatasetManager:
         print("\nDataset built successfully")
         print("Dataset domains: ")
         print(list(self.DATASET.domain.unique()))
+        print("Dataset 'data_type' in: ")
+        print(list(self.DATASET.data_type.unique()))
 
     def add_alphafold_data(self,
                            EXCLUDE_SEQS: Optional[list] = None,
@@ -148,15 +142,32 @@ class DatasetManager:
                                  EXCLUDE_SEQS,
                                  EXCLUDE_DOMAIN)
 
+        print("Updating dataset with AlphaFold data")
+        self.build(recalculate=True)
+
     def add_IBS_data(self):
         # Interfacial binding sites (IBS) tagging in the dataset
         # Originally on the "tools notebooks"; ported to ibs_tagging.py
         self.IBS_tagger = IBSTagging(self.settings)
         self.IBS_tagger.run(self.DATASET)
 
+        # TO DO: do we need to build again!?
+        #print("Updating dataset with IBS data")
+        #self.build(recalculate=True)
+
     """
     ### All methods below just encapsulate the steps in Notebook #2
     """
+
+    def _pepr2ds_setup(self):
+        import pepr2ds.builder.Builder as builderEngine
+        importlib.reload(builderEngine)
+        # TO DO: it seems that 'update' in pepr2ds only makes sense when 'recalculate' is True, right?
+        self.builder = builderEngine.Builder(self.settings.SETUP, 
+                                             recalculate = self.RECALCULATION,
+                                             update = self.RECALCULATION,
+                                             notebook = self.settings.USING_NOTEBOOK,
+                                             core = 1)
 
     def clean(self):
         self.builder.structure.clean_all_pdbs()
@@ -168,13 +179,7 @@ class DatasetManager:
 
     def add_cluster_structural_info(self):
         # TO DO: can we avoid recreating the builder object!?
-        import pepr2ds.builder.Builder as builderEngine
-        importlib.reload(builderEngine)
-        self.builder = builderEngine.Builder(self.settings.SETUP, 
-                                             recalculate = self.RECALCULATION, 
-                                             update=False, 
-                                             notebook = self.settings.USING_NOTEBOOK, 
-                                             core=1)
+        self._pepr2ds_setup()
         self.DATASET = self.builder.structure.add_structural_cluster_info(self.DATASET)
 
     def add_uniprot_basic_info(self):
@@ -195,12 +200,7 @@ class DatasetManager:
 
     def add_conservation(self):
         # TO DO: can we avoid recreating the builder object!?
-        import pepr2ds.builder.Builder as builderEngine
-        importlib.reload(builderEngine)
-        self.builder = builderEngine.Builder(self.settings.SETUP, 
-                                             recalculate = self.RECALCULATION, 
-                                             notebook = self.settings.USING_NOTEBOOK)
-
+        self._pepr2ds_setup()
         self.DATASET = self.builder.sequence.add_conservation(self.DATASET,
                                                               gapcutoff=0.8)
 

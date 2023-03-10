@@ -448,14 +448,14 @@ class Structure(Attributes):
                 except:
                     uniprot_acc = None
 
-            elif datatype == 'alfafold':
+            elif datatype == 'alphafold':
                 pdbname = splittedPath[-1]
                 domain = splittedPath[-3]
                 cathpdbcode = pdbname.split(".")[0]
                 pdbcode = pdbname
                 chain = "A"
                 uniprot_acc = cathpdbcode
-                data_type = 'alfafold'
+                data_type = 'alphafold'
 
             elif datatype == 'custom':
                 pdbname = splittedPath[-1]
@@ -557,9 +557,9 @@ class Structure(Attributes):
             return None
 
         pdblist = [str(x) for x in Path(self.CATHFOLDER).glob("domains/**/raw/*.pdb")]
-        pdblist_alfafold = ([str(x) for x in Path(self.ALFAFOLDFOLDER).glob("**/extracted/*.pdb")])  # impl:AFS
+        pdblist_alphafold = ([str(x) for x in Path(self.ALPHAFOLDFOLDER).glob("**/extracted/*.pdb")])  # impl:AFS
 
-        allpdbs = pdblist + pdblist_alfafold
+        allpdbs = pdblist + pdblist_alphafold
 
         for pdb in self.tqdm(allpdbs, desc='cleaning'):
             self.clean_pdb(pdb)
@@ -585,7 +585,7 @@ class Structure(Attributes):
 
 
             pdblist = [str(x) for x in Path(self.CATHFOLDER).glob("domains/**/cleaned/*.pdb")]
-            pdblist_alfafold = ([str(x) for x in Path(self.ALFAFOLDFOLDER).glob("**/extracted/*.pdb")]) #impl:AFS
+            pdblist_alphafold = ([str(x) for x in Path(self.ALPHAFOLDFOLDER).glob("**/extracted/*.pdb")]) #impl:AFS
 
             if self.UPDATE and os.path.isfile(f"{self.WORKDIR}/checkpoint_structure.pkl"):
                 print("update mode, loading checkpoint backup file")
@@ -620,15 +620,15 @@ class Structure(Attributes):
 
 
                 print("removing duplicated pdbs (ALFAFOLD)")
-                beforesize = len(pdblist_alfafold)
-                pdblist_alfafold = remove_duplicated_element(pdb_already_in_db, pdblist_alfafold)
-                print(f"        {beforesize - (len(pdblist_alfafold)-beforesize)} new pdbs")
+                beforesize = len(pdblist_alphafold)
+                pdblist_alphafold = remove_duplicated_element(pdb_already_in_db, pdblist_alphafold)
+                print(f"        {beforesize - (len(pdblist_alphafold)-beforesize)} new pdbs")
                 updatemode = True
 
 
-            #Process alfafold structures
-            print(".. Processing alfafold structures ..")
-            DATASET_AF = self.process_pdb_list(pdblist_alfafold, datatype='alfafold')
+            #Process alphafold structures
+            print(".. Processing alphafold structures ..")
+            DATASET_AF = self.process_pdb_list(pdblist_alphafold, datatype='alphafold')
 
             #process cath structures
             print(".. Processing cath structures ..")
@@ -914,6 +914,6 @@ class Structure(Attributes):
 
         # Mergin with the previous dataset, on cathPDB.
         DATASET_cath= pd.merge(DATASET, cathDomains, on="cathpdb")
-        DATASET_af = DATASET.query("data_type == 'alfafold'")
+        DATASET_af = DATASET.query("data_type == 'alphafold'")
         DATASET = pd.concat([DATASET_cath, DATASET_af])
         return DATASET
