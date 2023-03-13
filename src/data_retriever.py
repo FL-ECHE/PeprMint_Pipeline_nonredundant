@@ -179,6 +179,10 @@ class DataRetriever:
             os.makedirs(prefix + 'domains/' + domName + '/cleaned/')
 
         dom_list = self.cath_domains_per_superfamily[superfamily]
+
+        # limiting the dataset for experimental purpose
+        if self.settings.XP_MODE and len(dom_list) > self.settings.xp_domain_limit:
+                dom_list = dom_list[0:self.settings.xp_domain_limit]
         
         if self.PARALLEL:
             pd.Series(dom_list).parallel_apply(

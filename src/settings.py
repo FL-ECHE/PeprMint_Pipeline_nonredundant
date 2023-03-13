@@ -59,6 +59,19 @@ class Settings:
         self._run_config(path)
         self._libs_setup()
 
+        # experimental mode
+        self.XP_MODE = self.config_file.getboolean('EXPERIMENTAL_MODE','xp_mode')
+        if self.XP_MODE:
+            print("\n*** User option: experimental mode on")
+            print("*** Warning! This limits the dataset size for experimenting purposes")
+            print("***          Use results obtained in this mode with caution")
+            print("***          To turn it off, change 'xp_mode' to False in the config file\n")
+
+            self.xp_domain_limit = self.config_file.getint(
+                'EXPERIMENTAL_MODE','xp_mode_max_entries_per_domain')
+        else:
+            self.xp_domain_limit = None
+
         # create directory structure for peprmint
         cwd = self.config_file['GENERAL']['working_folder_path']
         try:
@@ -126,6 +139,10 @@ class Settings:
         self.config_file['GENERAL'] = {}
         # default folder: a new one in the current working directory
         self.config_file['GENERAL']['working_folder_path'] = '{0}/data'.format(os.getcwd())
+
+        self.config_file['EXPERIMENTAL_MODE'] = {}
+        self.config_file['EXPERIMENTAL_MODE']['xp_mode'] = str(False)
+        self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_entries_per_domain'] = "20"
 
         self.config_file['CATH'] = {}
         self.config_file['CATH']['version'] = 'v4_2_0'

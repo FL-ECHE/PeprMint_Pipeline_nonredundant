@@ -152,6 +152,7 @@ class DatasetManager:
         self.IBS_tagger.run(self.DATASET)
 
         # TO DO: do we need to build again!?
+        # TO DO: figure out where is IBSTagging._merge_datasets() called
         #print("Updating dataset with IBS data")
         #self.build(recalculate=True)
 
