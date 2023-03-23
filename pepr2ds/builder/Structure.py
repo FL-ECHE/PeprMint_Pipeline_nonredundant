@@ -511,6 +511,7 @@ class Structure(Attributes):
         except ValueError as e:
             print(e)
             print("no update to make, returning None")
+            # TO DO: replace by pd.DataFrame() to solve crashing
             return None
 
 
@@ -619,7 +620,7 @@ class Structure(Attributes):
 
 
 
-                print("removing duplicated pdbs (ALFAFOLD)")
+                print("removing duplicated pdbs (ALPHAFOLD)")
                 beforesize = len(pdblist_alphafold)
                 pdblist_alphafold = remove_duplicated_element(pdb_already_in_db, pdblist_alphafold)
                 print(f"        {beforesize - (len(pdblist_alphafold)-beforesize)} new pdbs")
@@ -912,7 +913,7 @@ class Structure(Attributes):
             ["cathpdb", "S35", "S60", "S95", "S100", "S100Count", "resolution"]
         ]
 
-        # Mergin with the previous dataset, on cathPDB.
+        # Merging with the previous dataset, on cathPDB.
         DATASET_cath= pd.merge(DATASET, cathDomains, on="cathpdb")
         DATASET_af = DATASET.query("data_type == 'alphafold'")
         DATASET = pd.concat([DATASET_cath, DATASET_af])

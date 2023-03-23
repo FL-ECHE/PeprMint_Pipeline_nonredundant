@@ -57,8 +57,12 @@ class DatasetManager:
     def __init__(self, global_settings: Settings):
         self.settings = global_settings
 
-        self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
-        self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
+        if self.settings.XP_MODE:
+            self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_XP"
+            self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_XP"
+        else:
+            self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
+            self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
 
         self.DATASET = None
         self.alphafold_utils = None
@@ -115,21 +119,21 @@ class DatasetManager:
         self._pepr2ds_setup()
 
         self.clean()
-        self.compute_protusion()
-        self.add_cluster_structural_info()
-        self.add_uniprot_basic_info()
-        self.add_prosite_info()
-        self.add_sequences_without_structure()
-        self.add_uniprot_protein_sheet_info()
-        self.add_cluster_uniref_info()
-        self.add_conservation()
-        self.save_dataset()
+        #self.compute_protusion()
+        #self.add_cluster_structural_info()
+        #self.add_uniprot_basic_info()
+        #self.add_prosite_info()
+        #self.add_sequences_without_structure()
+        #self.add_uniprot_protein_sheet_info()
+        #self.add_cluster_uniref_info()
+        #self.add_conservation()
+        #self.save_dataset()
 
         print("\nDataset built successfully")
-        print("Dataset domains: ")
-        print(list(self.DATASET.domain.unique()))
-        print("Dataset 'data_type' in: ")
-        print(list(self.DATASET.data_type.unique()))
+        #print("Dataset domains: ")
+        #print(list(self.DATASET.domain.unique()))
+        #print("Dataset 'data_type' in: ")
+        #print(list(self.DATASET.data_type.unique()))
 
     def add_alphafold_data(self,
                            EXCLUDE_SEQS: Optional[list] = None,
@@ -168,12 +172,12 @@ class DatasetManager:
                                              recalculate = self.RECALCULATION,
                                              update = self.RECALCULATION,
                                              notebook = self.settings.USING_NOTEBOOK,
-                                             core = 1)
+                                             core = self.settings.num_threads)
 
     def clean(self):
         self.builder.structure.clean_all_pdbs()
         self.DATASET = self.builder.structure.build_structural_dataset()
-        self.DATASET.data_type.unique()
+        #print(self.DATASET.data_type.unique())
 
     def compute_protusion(self):
         self.DATASET = self.builder.structure.add_protrusions(self.DATASET)

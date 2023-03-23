@@ -1,4 +1,4 @@
-name: peprmint-dev
+name: peprmint
 channels: 
 - conda-forge 
 - salilab 
@@ -32,6 +32,7 @@ dependencies:
 - pymol-open-source
 - tmalign
 - voila
+- configparser
 - pip:
   - pbxplore 
   - freesasa 

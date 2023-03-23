@@ -41,6 +41,7 @@ from typing import Optional
 import configparser
 
 import pandas as pd
+from pandarallel import pandarallel
 from tqdm.auto import trange, tqdm
 
 from src.notebook_handle import NotebookHandle
@@ -57,7 +58,6 @@ class Settings:
             self.NOTEBOOK_HANDLE = None
 
         self._run_config(path)
-        self._libs_setup()
 
         # experimental mode
         self.XP_MODE = self.config_file.getboolean('EXPERIMENTAL_MODE','xp_mode')
@@ -69,8 +69,17 @@ class Settings:
 
             self.xp_domain_limit = self.config_file.getint(
                 'EXPERIMENTAL_MODE','xp_mode_max_entries_per_domain')
+            self.PARALLEL = self.config_file.getboolean(
+                'EXPERIMENTAL_MODE', 'xp_mode_allow_parallel')
         else:
             self.xp_domain_limit = None
+            self.PARALLEL = True
+
+        self.num_threads = 1 if not self.PARALLEL else self.config_file.getint(
+                'GENERAL','number_of_threads_when_parallel')
+
+        self._libs_setup()
+        self._set_active_superfamilies()
 
         # create directory structure for peprmint
         cwd = self.config_file['GENERAL']['working_folder_path']
@@ -80,6 +89,7 @@ class Settings:
             self.FORMER_WORKING_DIR = False
         except FileExistsError:
             self.FORMER_WORKING_DIR = True
+
 
         self.PEPRMINT_FOLDER = cwd
         self.SETUP = {}   # dictionary with ALL parameters
@@ -139,10 +149,28 @@ class Settings:
         self.config_file['GENERAL'] = {}
         # default folder: a new one in the current working directory
         self.config_file['GENERAL']['working_folder_path'] = '{0}/data'.format(os.getcwd())
+        self.config_file['GENERAL']['number_of_threads_when_parallel'] = "4"
+        self.config_file['GENERAL']['include_PH'] = str(True)
+        self.config_file['GENERAL']['include_C2'] = str(True)
+        self.config_file['GENERAL']['include_C1'] = str(True)
+        self.config_file['GENERAL']['include_PX'] = str(True)
+        self.config_file['GENERAL']['include_FYVE'] = str(True)
+        self.config_file['GENERAL']['include_BAR'] = str(True)
+        self.config_file['GENERAL']['include_ENTH'] = str(True)
+        self.config_file['GENERAL']['include_SH2'] = str(True)
+        self.config_file['GENERAL']['include_SEC14'] = str(True)
+        self.config_file['GENERAL']['include_START'] = str(True)
+        self.config_file['GENERAL']['include_C2DIS'] = str(True)
+        self.config_file['GENERAL']['include_GLA'] = str(True)
+        self.config_file['GENERAL']['include_PLD'] = str(True)
+        self.config_file['GENERAL']['include_PLA'] = str(True)
+        self.config_file['GENERAL']['include_ANNEXIN'] = str(True)
+
 
         self.config_file['EXPERIMENTAL_MODE'] = {}
         self.config_file['EXPERIMENTAL_MODE']['xp_mode'] = str(False)
         self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_entries_per_domain'] = "20"
+        self.config_file['EXPERIMENTAL_MODE']['xp_mode_allow_parallel'] = "False"
 
         self.config_file['CATH'] = {}
         self.config_file['CATH']['version'] = 'v4_2_0'
@@ -190,7 +218,68 @@ class Settings:
 
     def _libs_setup(self):
         # Place any additional settings for imported libraries here
+
+        # Pandas
         tqdm.pandas()   # activate tqdm progressbar for pandas
+
+        # try to use pandarallel (only on GNU/Linux and OS X?)
+        if self.PARALLEL:
+            try:
+                pandarallel.initialize(nb_workers = self.num_threads,
+                                       progress_bar = True)
+            except:
+                self.PARALLEL = False
+                self.num_threads = 1
+
+    def _set_active_superfamilies(self):
+        self.use_PH = self.config_file.getboolean('GENERAL','include_PH')
+        self.use_C2 = self.config_file.getboolean('GENERAL','include_C2')
+        self.use_C1 = self.config_file.getboolean('GENERAL','include_C1')
+        self.use_PX = self.config_file.getboolean('GENERAL','include_PX')
+        self.use_FYVE = self.config_file.getboolean('GENERAL','include_FYVE')
+        self.use_BAR = self.config_file.getboolean('GENERAL','include_BAR')
+        self.use_ENTH = self.config_file.getboolean('GENERAL','include_ENTH')
+        self.use_SH2 = self.config_file.getboolean('GENERAL','include_SH2')
+        self.use_SEC14 = self.config_file.getboolean('GENERAL','include_SEC14')
+        self.use_START = self.config_file.getboolean('GENERAL','include_START')
+        self.use_C2DIS = self.config_file.getboolean('GENERAL','include_C2DIS')
+        self.use_GLA = self.config_file.getboolean('GENERAL','include_GLA')
+        self.use_PLD = self.config_file.getboolean('GENERAL','include_PLD')
+        self.use_PLA = self.config_file.getboolean('GENERAL','include_PLA')
+        self.use_ANNEXIN = self.config_file.getboolean('GENERAL','include_ANNEXIN')
+
+        self.active_superfamilies = []
+
+        if self.use_PH:
+            self.active_superfamilies.append("PH")
+        if self.use_C2:
+            self.active_superfamilies.append("C2")
+        if self.use_C1:
+            self.active_superfamilies.append("C1")
+        if self.use_PX:
+            self.active_superfamilies.append("PX")
+        if self.use_FYVE:
+            self.active_superfamilies.append("FYVE")
+        if self.use_BAR:
+            self.active_superfamilies.append("BAR")
+        if self.use_ENTH:
+            self.active_superfamilies.append("ENTH")
+        if self.use_SH2:
+            self.active_superfamilies.append("SH2")
+        if self.use_SEC14:
+            self.active_superfamilies.append("SEC14")
+        if self.use_START:
+            self.active_superfamilies.append("START")
+        if self.use_C2DIS:
+            self.active_superfamilies.append("C2DIS")
+        if self.use_GLA:
+            self.active_superfamilies.append("GLA")
+        if self.use_PLD:
+            self.active_superfamilies.append("PLD")
+        if self.use_PLA:
+            self.active_superfamilies.append("PLA")
+        if self.use_ANNEXIN:
+            self.active_superfamilies.append("ANNEXIN")
 
     def define_folders(self):
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
@@ -228,8 +317,10 @@ class Settings:
         if not os.path.exists(self.CATHFOLDER):
             os.makedirs(self.CATHFOLDER)
 
+    # TO DO: move the correspondences below to the .config file?
     def map_cath_and_prosite(self):
         self.CATHVERSION = self.config_file['CATH']['version']
+
         self.DOMAIN_PROSITE = {
             "PH": "PS50003",
             "C2": ["PS50004","PS51547"],
@@ -250,6 +341,9 @@ class Settings:
             "PLA":"PS00118",
             "ANNEXIN":"PS00223",
         }
+
+        self._filter_active_domains(self.DOMAIN_PROSITE)
+
         # Invert keys and values to have PROSITEID ==> DOMAIN
         self.PROSITE_DOMAIN = {}
         for key, value in self.DOMAIN_PROSITE.items():
@@ -278,6 +372,8 @@ class Settings:
             "ANNEXIN":"1.10.220.10",
         }
 
+        self._filter_active_domains(self.DOMAIN_CATH)
+
         self.DOMAIN_INTERPRO = {
             "PH": "SSF50729",
             "C2": "SSF49562",
@@ -295,6 +391,8 @@ class Settings:
             "PLA":"G3DSA:1.20.90.10",
             "ANNEXIN":"SSF47874",
         }
+
+        self._filter_active_domains(self.DOMAIN_INTERPRO)
 
         self.DOMAIN_INTERPRO_REFINE = {
             "PH": True,
@@ -314,6 +412,8 @@ class Settings:
             "ANNEXIN":False,
         }
 
+        self._filter_active_domains(self.DOMAIN_INTERPRO_REFINE)
+
         # Invert keys and values to have CATHID ==> DOMAIN
         self.CATH_DOMAIN = {v: k for k, v in self.DOMAIN_CATH.items()}
         self.SUPERFAMILY = self.CATH_DOMAIN
@@ -322,6 +422,12 @@ class Settings:
         self.SETUP["DOMAIN_CATH"] = self.DOMAIN_CATH
         self.SETUP["CATH_DOMAIN"] = self.CATH_DOMAIN
         self.SETUP["SUPERFAMILY"] = self.SUPERFAMILY
+
+    # keep only the entries for the active domains
+    def _filter_active_domains(self, d: dict):
+        inactive_keys = [k for k in d.keys() if k not in self.active_superfamilies]
+        for key in inactive_keys:
+            del d[key]
 
     # NB! function 'selectUniquePerCluster(...)' from notebook #0
     # is redefined (and used) on notebook 02, so we are moving it

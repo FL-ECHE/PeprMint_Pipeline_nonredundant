@@ -58,12 +58,12 @@ def main():
 
     # notebook #1
     data_retriever = DataRetriever(global_settings)
-    #data_retriever.run()
+    data_retriever.run()
 
     # notebook #2
     dataset_manager = DatasetManager(global_settings)
-    #dataset_manager.build(recalculate=False)   # build dataset from fetched data
-    dataset_manager.load_light_dataset()   # load dataset built on a previous run
+    dataset_manager.build()   # build dataset from fetched data
+    #dataset_manager.load_light_dataset()   # load dataset built on a previous run
 
     # notebook #3
     # not needed if already computed earlier
@@ -80,10 +80,10 @@ def main():
 
     # auxiliary tools notebook for interfacial binding sites (IBS) tagging
     # not needed if already computed earlier
-    dataset_manager.add_IBS_data()
+    #dataset_manager.add_IBS_data()
 
     # notebook #4
-    figure_gen = FigureGenerator(global_settings)
+    #figure_gen = FigureGenerator(global_settings)
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

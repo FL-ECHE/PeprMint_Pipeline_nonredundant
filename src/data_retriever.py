@@ -58,19 +58,12 @@ class DataRetriever:
         self.settings = global_settings
         self.UPDATE = False
 
-        # try to use pandarallel (only on GNU/Linux and OS X?)
-        try:
-            from pandarallel import pandarallel
-            pandarallel.initialize(nb_workers=8, progress_bar=True)
-            self.PARALLEL = True
-        except:
-            self.PARALLEL = False
-
     def run(self) -> bool:
         if self.settings.FORMER_WORKING_DIR:
             print('Error: working directory already exists; remove it if you want to fetch all data from scratch with DataRetriever.run()')
             return False
         else:
+            print(f'> Data retriever (domains selected in .config file: {self.settings.active_superfamilies})')
             self.retrieve_cath_domains()
             self.retrieve_uniprot_to_pdb_correspondence()
             self.retrieve_prosite()
@@ -137,14 +130,14 @@ class DataRetriever:
             os.remove(destination)
 
     def retrieve_cath_pdb_files(self):
-        # reading cath domain list
+        # cath_domains: the complete list from cath with all domains
         self.cath_domains = pd.read_csv(self.settings.CATHFOLDER + self.dom_file,
                                         comment = '#',
                                         sep = r"\s+",
                                         header = None)
         self.cath_domains.columns = self.column_dom_file
 
-        if self.PARALLEL:
+        if self.settings.PARALLEL:
             self.cath_domains['Superfamily'] = self.cath_domains.parallel_apply(
                 lambda x : f"{x.Class}.{x.Architecture}.{x.Topology}.{x.Homologous}",
                 axis=1)
@@ -153,22 +146,23 @@ class DataRetriever:
                 lambda x : f"{x.Class}.{x.Architecture}.{x.Topology}.{x.Homologous}",
                 axis=1)
 
-        # creating the superfamily
+        # cath_superfamily: just superfamily-domain correspondence
         self.cath_superfamily = pd.DataFrame()
         self.cath_superfamily['Superfamily'] = self.cath_domains.Superfamily
         self.cath_superfamily['Domain'] = self.cath_domains.Domain
 
-        # creating a dictionary superfamily -> list of cathdomain (pdb format)
+        # cath_domains_per_superfamily: a map superfamily -> list of domains (from cath_superfamily) 
         # NB! do not parallelize this one
         self.cath_domains_per_superfamily = defaultdict(list)
         _ = self.cath_superfamily.progress_apply(
                 lambda x : self.cath_domains_per_superfamily[x.Superfamily].append(x.Domain),
                 axis = 1)
 
-        # gather data for all domains
+        # gather data for domains enabled in config file
         for superfamily, domain in self.settings.SUPERFAMILY.items():
-            print(f"> Fetching domain {domain} files")
-            self._fetch_dom_for_superfamily(superfamily, domain)
+            if domain in self.settings.active_superfamilies:
+                print(f"> Fetching domain {domain} files")
+                self._fetch_dom_for_superfamily(superfamily, domain)
 
     def _fetch_dom_for_superfamily(self, superfamily, domName):
         prefix = self.settings.CATHFOLDER
@@ -180,11 +174,11 @@ class DataRetriever:
 
         dom_list = self.cath_domains_per_superfamily[superfamily]
 
-        # limiting the dataset for experimental purpose
+        # limit the dataset size when experimenting only
         if self.settings.XP_MODE and len(dom_list) > self.settings.xp_domain_limit:
                 dom_list = dom_list[0:self.settings.xp_domain_limit]
         
-        if self.PARALLEL:
+        if self.settings.PARALLEL:
             pd.Series(dom_list).parallel_apply(
                 lambda x : self._fetch_pdb_from_cath_dom(x, folder) )
         else:
