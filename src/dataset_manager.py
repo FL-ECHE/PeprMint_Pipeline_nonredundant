@@ -119,21 +119,21 @@ class DatasetManager:
         self._pepr2ds_setup()
 
         self.clean()
-        #self.compute_protusion()
-        #self.add_cluster_structural_info()
-        #self.add_uniprot_basic_info()
-        #self.add_prosite_info()
-        #self.add_sequences_without_structure()
-        #self.add_uniprot_protein_sheet_info()
-        #self.add_cluster_uniref_info()
-        #self.add_conservation()
-        #self.save_dataset()
+        self.compute_protusion()
+        self.add_cluster_structural_info()
+        self.add_uniprot_basic_info()
+        self.add_prosite_info()
+        self.add_sequences_without_structure()
+        self.add_uniprot_protein_sheet_info()
+        self.add_cluster_uniref_info()
+        self.add_conservation()
+        self.save_dataset()
 
         print("\nDataset built successfully")
-        #print("Dataset domains: ")
-        #print(list(self.DATASET.domain.unique()))
-        #print("Dataset 'data_type' in: ")
-        #print(list(self.DATASET.data_type.unique()))
+        print("Dataset domains: ")
+        print(list(self.DATASET.domain.unique()))
+        print("Dataset 'data_type' in: ")
+        print(list(self.DATASET.data_type.unique()))
 
     def add_alphafold_data(self,
                            EXCLUDE_SEQS: Optional[list] = None,
@@ -175,37 +175,51 @@ class DatasetManager:
                                              core = self.settings.num_threads)
 
     def clean(self):
+        print(">>> clean()...")
         self.builder.structure.clean_all_pdbs()
         self.DATASET = self.builder.structure.build_structural_dataset()
-        #print(self.DATASET.data_type.unique())
 
     def compute_protusion(self):
+        print(">>> compute_protusion()...")
         self.DATASET = self.builder.structure.add_protrusions(self.DATASET)
 
     def add_cluster_structural_info(self):
         # TO DO: can we avoid recreating the builder object!?
+        print(">>> _pepr2ds_setup()...")
         self._pepr2ds_setup()
+        print(">>> add_cluster_structural_info()...")
         self.DATASET = self.builder.structure.add_structural_cluster_info(self.DATASET)
 
     def add_uniprot_basic_info(self):
+        print(">>> add_uniprot_basic_info()...")
         self.DATASET = self.builder.sequence.add_uniprotId_Origin(self.DATASET)
 
     def add_prosite_info(self):
+        print(">>> add_prosite_info()...")
         self.DATASET = self.builder.sequence.match_residue_number_with_alignment_position(self.DATASET)
 
     def add_sequences_without_structure(self):
+        print(">>> add_sequences_without_structure()...")
         self.DATASET = self.builder.sequence.add_sequence_in_dataset(self.DATASET)
 
     def add_uniprot_protein_sheet_info(self):
-        self.builder.sequence.download_uniprot_data(self.DATASET)
+        print(">>> download_uniprot_data()...")
+        # original method (individual HTTP requests) takes excessive time
+        # self.builder.sequence.download_uniprot_data(self.DATASET)
+        self.builder.sequence.download_uniprot_data_REST(self.DATASET)
+        
+        print(">>> add_info_from_uniprot()...")
         self.DATASET = self.builder.sequence.add_info_from_uniprot(self.DATASET)
 
     def add_cluster_uniref_info(self):
+        print(">>> add_cluster_uniref_info()...")
         self.DATASET = self.builder.sequence.add_cluster_info(self.DATASET)
 
     def add_conservation(self):
         # TO DO: can we avoid recreating the builder object!?
+        print(">>> _pepr2ds_setup()...")
         self._pepr2ds_setup()
+        print(">>> add_conservation()...")
         self.DATASET = self.builder.sequence.add_conservation(self.DATASET,
                                                               gapcutoff=0.8)
 

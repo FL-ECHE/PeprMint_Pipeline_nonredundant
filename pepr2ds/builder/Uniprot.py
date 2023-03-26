@@ -45,10 +45,11 @@ import re
 import time
 import json
 import zlib
-from xml.etree import ElementTree
+import xml.etree.ElementTree as ET
 from urllib.parse import urlparse, parse_qs, urlencode
 import requests
 from requests.adapters import HTTPAdapter, Retry
+from typing import Optional, List
 
 
 POLLING_INTERVAL = 3
@@ -154,18 +155,47 @@ def decode_results(response, file_format, compressed):
 
 
 def get_xml_namespace(element):
-    m = re.match(r"\{(.*)\}", element.tag)
-    return m.groups()[0] if m else ""
+    matched = re.match(r"\{(.*)\}", element.tag)
+    return matched.groups()[0] if matched else ""
 
 
+# TO DO: remove this later if indeed not used anywhere
 def merge_xml_results(xml_results):
-    merged_root = ElementTree.fromstring(xml_results[0])
+    merged_root = ET.fromstring(xml_results[0])
     for result in xml_results[1:]:
-        root = ElementTree.fromstring(result)
+        root = ET.fromstring(result)
         for child in root.findall("{http://uniprot.org/uniprot}entry"):
             merged_root.insert(-1, child)
-    ElementTree.register_namespace("", get_xml_namespace(merged_root[0]))
-    return ElementTree.tostring(merged_root, encoding="utf-8", xml_declaration=True)
+    ET.register_namespace("", get_xml_namespace(merged_root[0]))
+    return ET.tostring(merged_root, encoding="utf-8", xml_declaration=True)
+
+
+def write_xml_results(xml_results: List[str], folder: str):
+    # save individual xml files from the result of the REST query
+    for xml_str in xml_results:
+        root = ET.fromstring(xml_str)
+
+        # repeat xml header (two lines) and closing tag (last line) on each entry
+        l1 = xml_str.find('\n') + 1
+        l2 = xml_str.find('\n', l1) + 1
+        header = xml_str[:l2]
+        header_bin = header.encode('ascii')
+
+        root_tag = root.tag.split("}")[-1]
+        last_line = f"</{root_tag}>"
+        #last = xml_str.rfind('\n') + 1
+        #last_line = xml_str[last:]
+        last_line_bin = last_line.encode('ascii')
+
+        # repeat xml namespace on each entry
+        ET.register_namespace("", get_xml_namespace(root[0]))
+        
+        for entry in root.findall("{http://uniprot.org/uniprot}entry"):
+            seqname = entry.findtext('{http://uniprot.org/uniprot}name')
+            filepath = folder + seqname + ".xml"
+            tmp = ET.tostring(element = entry)
+            with open(filepath, "wb") as f:
+                f.write(header_bin + tmp + last_line_bin)
 
 
 def print_progress_batches(batch_index, size, total):
@@ -173,7 +203,9 @@ def print_progress_batches(batch_index, size, total):
     print(f"Fetched: {n_fetched} / {total}")
 
 
-def get_id_mapping_results_search(url):
+def get_id_mapping_results_search(url, get_format: Optional[str] = None):
+    if get_format is not None:
+        url = url + "?format=" + get_format
     parsed = urlparse(url)
     query = parse_qs(parsed.query)
     file_format = query["format"][0] if "format" in query else "json"
@@ -196,8 +228,11 @@ def get_id_mapping_results_search(url):
     for i, batch in enumerate(get_batch(request, file_format, compressed), 1):
         results = combine_batches(results, batch, file_format)
         print_progress_batches(i, size, total)
+    """
+    # avoiding as it depends on python 3.10
     if file_format == "xml":
         return merge_xml_results(results)
+    """
     return results
 
 

@@ -614,7 +614,7 @@ class Sequence(Attributes):
         On uniprot xml page you can have a lot of information that we can add on our dataset later on.
 
         Returns:
-            None, it's just to download datas
+            None, it's just to download data
         """
         #Get all differents uniprot ids
         uniprot_ids = DATASET.uniprot_id.dropna().unique()
@@ -639,6 +639,24 @@ class Sequence(Attributes):
 
         print(f"> {downloaded} new files downloaded and {exists} will be reused.")
 
+
+    def download_uniprot_data_REST(self, DATASET):
+        """
+        Alternative method to download Uniprot xml files using the new REST API
+        Should be much faster than making individual HTTP requests
+        """
+        uniprot_ids = DATASET.uniprot_id.dropna().unique()
+        
+        job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", 
+                                   to_db = "UniProtKB", 
+                                   ids = uniprot_ids)
+        
+        if check_id_mapping_results_ready(job_id):
+            link = get_id_mapping_results_link(job_id)
+            results = get_id_mapping_results_search(link, get_format="xml")
+            write_xml_results(results, self.UNIPROTFOLDER)
+
+        # TO DO: handle download failure
 
 
     def add_info_from_uniprot(self, DATASET):
