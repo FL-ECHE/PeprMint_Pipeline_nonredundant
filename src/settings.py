@@ -37,6 +37,7 @@ __status__ = "Prototype"
 """
 
 import os
+import sys
 from typing import Optional
 import configparser
 
@@ -51,12 +52,7 @@ class Settings:
     def __init__(self, path: Optional[str] = None):
         self._DEFAULT_CONFIG_FILE = '{0}/{1}'.format(os.getcwd(),
                                                      'peprmint_default.config')
-        self.USING_NOTEBOOK = self._is_notebook()
-        if self.USING_NOTEBOOK:
-            self.NOTEBOOK_HANDLE = NotebookHandle()
-        else:
-            self.NOTEBOOK_HANDLE = None
-
+        self._get_platform()
         self._run_config(path)
 
         # experimental mode
@@ -108,6 +104,24 @@ class Settings:
                 return False  # other type (?)
         except NameError:
             return False      # probably standard Python interpreter
+
+    def _get_platform(self):
+        # OS
+        if sys.platform == "linux":
+            self.OS = "linux"
+        elif sys.platform == "darwin":
+            self.OS = "macos"
+        elif sys.platform == "win32":
+            self.OS = "windows"
+        else:
+            self.OS = None
+        
+        # Jupyter notebook or not
+        self.USING_NOTEBOOK = self._is_notebook()
+        if self.USING_NOTEBOOK:
+            self.NOTEBOOK_HANDLE = NotebookHandle()
+        else:
+            self.NOTEBOOK_HANDLE = None
 
     def _run_config(self, path: Optional[str] = None):
         """ Read configuration file
@@ -176,6 +190,10 @@ class Settings:
         self.config_file['CATH']['version'] = 'v4_2_0'
         self.config_file['CATH']['domain_list_url'] = "http://download.cathdb.info/cath/releases/all-releases/{0}/cath-classification-data/cath-domain-list-{0}.txt".format(self.config_file['CATH']['version'])
         self.config_file['CATH']['fetch_pdb_url'] = "http://www.cathdb.info/version/{0}/api/rest/id/".format(self.config_file['CATH']['version'])
+        comment_on_superpose = "# check https://github.com/UCLOrengoGroup/cath-tools/releases/latest"
+        self.config_file.set('CATH', comment_on_superpose)
+        self.config_file['CATH']['superpose_url_linux'] = "https://github.com/UCLOrengoGroup/cath-tools/releases/download/v0.16.10/cath-superpose.ubuntu-20.04"
+        self.config_file['CATH']['superpose_url_macos'] = "https://github.com/UCLOrengoGroup/cath-tools/releases/download/v0.16.10/cath-superpose.macos-10.15"
 
         self.config_file['UNIPROT'] = {}
         self.config_file['UNIPROT']['url'] = "ftp://ftp.ebi.ac.uk/pub/databases/msd/sifts/flatfiles/csv/pdb_chain_uniprot.csv.gz"

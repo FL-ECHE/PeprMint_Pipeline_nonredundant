@@ -516,7 +516,7 @@ class Structure(Attributes):
 
 
     def add_experimental_method(self, DATASET):
-        print("fetching experimental method from PDBe")
+        print("Fetching experimental method from PDBe")
 
         pdb_list = [x.lower() for x in DATASET.pdb.unique()]
 
@@ -688,7 +688,7 @@ class Structure(Attributes):
             DATASET (pandas.DataFrame): Dataset news properties as columns
 
         """
-        print("... Conputing protrusions .. ")
+        print("... Computing protrusions .. ")
 
         def calc_protrusions_on_group(
                 pdbdata,

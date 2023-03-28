@@ -31,6 +31,10 @@ settings to NotebookHandle. When using jupyter notebooks, it suffices to call
 the using_notebook() method from Settings before running everything else, e.g. 
 as currently done in main().
 
+There are two main (proxy) methods for client classes: fetch() downloads most of
+the data necessary, and superpose() runs cath-superpose to update downloaded pdb
+files.
+
 __author__ = ["Thibault Tubiana", "Phillippe Samer"]
 __organization__ = "Computational Biology Unit, Universitetet i Bergen"
 __copyright__ = "Copyright (c) 2022 Reuter Group"
@@ -45,6 +49,11 @@ import pandas as pd
 from collections import defaultdict
 
 import os
+import stat
+from pathlib import Path
+import glob
+import subprocess
+
 import shutil
 import urllib
 import tarfile
@@ -58,9 +67,9 @@ class DataRetriever:
         self.settings = global_settings
         self.UPDATE = False
 
-    def run(self) -> bool:
+    def fetch(self) -> bool:
         if self.settings.FORMER_WORKING_DIR:
-            print('Error: working directory already exists; remove it if you want to fetch all data from scratch with DataRetriever.run()')
+            print('Error: working directory already exists; remove it if you want to fetch all data from scratch with DataRetriever.fetch()')
             return False
         else:
             print(f'> Data retriever (domains selected in .config file: {self.settings.active_superfamilies})')
@@ -191,3 +200,102 @@ class DataRetriever:
         destination = folder + dom + '.pdb'
         if not os.path.isfile(destination): 
             urllib.request.urlretrieve(url, destination)
+
+    def superpose(self) -> bool:
+        """ Running the superposition over downloaded PDBs (cath-superpose 
+        external tool, with built-in SSAP for all-vs-all pairwise structure 
+        alignment)
+        """
+        print(f"> Superposing downloaded PDBs with cath-superpose and SSAP alignments")
+
+        if not self._fetch_cath_superpose_binary():
+            return False
+
+        # TO DO: consider adding an option to avoid overwriting downloaded PDBs with superimposed ones
+        return self._run_cath_superpose()
+
+    def _fetch_cath_superpose_binary(self) -> bool:
+        if self.settings.OS == "linux":
+            tool_url = self.settings.config_file['CATH']['superpose_url_linux']
+        elif self.settings.OS == "macos":
+            tool_url = self.settings.config_file['CATH']['superpose_url_macos']
+        else:
+            print('Error: current superposition method (cath-superpose) only available on GNU/Linux and MacOS')
+            return False
+
+        self.superpose_tool = self.settings.CATHFOLDER + 'cath-superpose'
+        if not os.path.isfile(self.superpose_tool): 
+            urllib.request.urlretrieve(tool_url, self.superpose_tool)
+
+        # make executable: 'current permission bits' BINARY OR 'executable bit'
+        st = os.stat(self.superpose_tool)
+        os.chmod(self.superpose_tool, st.st_mode | stat.S_IEXEC)
+
+        return True
+
+    def _run_cath_superpose(self, verbose=False) -> bool:
+        success_only = True
+        error_message = ""
+
+        for domain in self.settings.active_superfamilies:
+            # temporary output folders
+            output_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/super/'
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+            tmp_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/cath_tools_tmp/'
+            if not os.path.exists(tmp_dir):
+                os.makedirs(tmp_dir)
+
+            # domain files as arguments to cath-superpose
+            filelist = Path(self.settings.CATHFOLDER).glob(f"domains/{domain}/raw/*.pdb")
+            run_input = ""
+            for f in filelist:
+                run_input += "--pdb-infile " + str(f) + " "
+
+            # need to export environment var for cath-ssap
+            raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
+            env_setting = f"export CATH_TOOLS_PDB_PATH={raw_dir} ; "
+
+            # run cath-superpose
+            run_options = "--do-the-ssaps " + tmp_dir
+            run_output = "--sup-to-pdb-files-dir " + output_dir
+            trigger = f"{self.superpose_tool} {run_options} {run_output} {run_input}"
+            about = subprocess.run(env_setting+trigger, shell=True, capture_output=True)
+            if verbose:
+                print("done executing:")
+                x = str(about.args)
+                print(x)
+                print("retuncode is:")
+                x = int(about.returncode)
+                print(str(x))
+                print("stdout is:")
+                x = str(about.stdout, "utf-8")
+                print(x)
+                print("stderr is")
+                x = str(about.stderr, "utf-8")
+                print(x)
+
+            # TO DO: maybe call about.check_returncode() instead (raise exception)
+            if int(about.returncode) != 0:
+                success_only = False
+                out = str(about.stderr, "utf-8")
+                error_message += out
+
+            # delete extra folder with alignments, replace raw with superposed
+            shutil.rmtree(tmp_dir)
+            raw_files = len([name for name in os.listdir(raw_dir) if os.path.isfile(os.path.join(raw_dir, name))])
+            super_files = len([name for name in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, name))])
+            if raw_files == super_files:
+                shutil.rmtree(raw_dir)
+                os.rename(output_dir, raw_dir)
+            else:
+                success_only = False
+                out = f"Error: superposed file count for {domain} does not match raw file count\n"
+                out += "Check directory: " + output_dir + "\n"
+                error_message += out
+        
+        if not success_only:
+            print("Errors found while executing cath-superpose:")
+            print(error_message)
+
+        return success_only
