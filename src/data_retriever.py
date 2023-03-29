@@ -68,18 +68,46 @@ class DataRetriever:
         self.UPDATE = False
 
     def fetch(self) -> bool:
+        """ Public method #1
+        Fetches the main data needed to construct the dataset, from CATH, EBI, 
+        and UniProt. Not included in this module are AlphaFold PDBs (that were
+        ported to a separate module, following Notebook #3) and the UniProt xml 
+        sequence files (that are retrieved as part of the earlier architecture 
+        of pepr2ds (called through DatasetManager).
+        """
+
         if self.settings.FORMER_WORKING_DIR:
             print('Error: working directory already exists; remove it if you want to fetch all data from scratch with DataRetriever.fetch()')
             return False
         else:
             print(f'> Data retriever (domains selected in .config file: {self.settings.active_superfamilies})')
-            self.retrieve_cath_domains()
-            self.retrieve_uniprot_to_pdb_correspondence()
-            self.retrieve_prosite()
-            self.retrieve_cath_pdb_files()
+            self._retrieve_cath_domains()
+            self._retrieve_uniprot_to_pdb_correspondence()
+            self._retrieve_prosite()
+            self._retrieve_cath_pdb_files()
             return True
+    
+    def superpose(self) -> bool:
+        """ Public method #2
+        Running the superposition over downloaded PDBs (cath-superpose 
+        external tool, with built-in SSAP for all-vs-all pairwise structure 
+        alignment)
+        """
+        print(f"> Superposing downloaded PDBs with cath-superpose and SSAP alignments")
 
-    def retrieve_cath_domains(self):
+        if not self._fetch_cath_superpose_binary():
+            return False
+
+        # TO DO: consider adding an option to avoid overwriting downloaded PDBs with superimposed ones
+        if not self._run_cath_superpose():
+            return False
+
+        print(f"> Aligning superposed PDBs along z axis with respect to the domain representative")
+        return self._align_on_z_axis()
+
+    ############################################################################
+
+    def _retrieve_cath_domains(self):
         # TO DO: release 4_2_0 or latest?
         self.dom_file = 'cath-domain-list.txt'
         url = self.settings.config_file['CATH']['domain_list_url']
@@ -101,7 +129,7 @@ class DataRetriever:
                                  'DomSize',
                                  'resolution', ]
 
-    def retrieve_uniprot_to_pdb_correspondence(self):
+    def _retrieve_uniprot_to_pdb_correspondence(self):
         url = self.settings.config_file['UNIPROT']['url']
 
         destination = self.settings.CATHFOLDER + "pdb_chain_uniprot.csv"
@@ -118,7 +146,7 @@ class DataRetriever:
                     output.write(file)
             os.remove(tmp_destination)
 
-    def retrieve_prosite(self):
+    def _retrieve_prosite(self):
         url = self.settings.config_file['PROSITE']['url']
 
         destination = self.settings.PROSITEFOLDER + "prosite_alignments.tar.gz" 
@@ -138,7 +166,7 @@ class DataRetriever:
                       self.settings.PROSITEFOLDER + "msa")
             os.remove(destination)
 
-    def retrieve_cath_pdb_files(self):
+    def _retrieve_cath_pdb_files(self):
         # cath_domains: the complete list from cath with all domains
         self.cath_domains = pd.read_csv(self.settings.CATHFOLDER + self.dom_file,
                                         comment = '#',
@@ -186,7 +214,12 @@ class DataRetriever:
         # limit the dataset size when experimenting only
         if self.settings.XP_MODE and len(dom_list) > self.settings.xp_domain_limit:
                 dom_list = dom_list[0:self.settings.xp_domain_limit]
-        
+
+                # make sure the reference pdb (to "align on z" later) is kept
+                ref_pdb = self.settings.config_file['ALIGNMENT_ON_Z_AXIS']["ref_"+domName+"_pdb"]
+                if ref_pdb is not None and ref_pdb not in dom_list:
+                    dom_list[0] = ref_pdb
+
         if self.settings.PARALLEL:
             pd.Series(dom_list).parallel_apply(
                 lambda x : self._fetch_pdb_from_cath_dom(x, folder) )
@@ -201,18 +234,7 @@ class DataRetriever:
         if not os.path.isfile(destination): 
             urllib.request.urlretrieve(url, destination)
 
-    def superpose(self) -> bool:
-        """ Running the superposition over downloaded PDBs (cath-superpose 
-        external tool, with built-in SSAP for all-vs-all pairwise structure 
-        alignment)
-        """
-        print(f"> Superposing downloaded PDBs with cath-superpose and SSAP alignments")
-
-        if not self._fetch_cath_superpose_binary():
-            return False
-
-        # TO DO: consider adding an option to avoid overwriting downloaded PDBs with superimposed ones
-        return self._run_cath_superpose()
+    ############################################################################
 
     def _fetch_cath_superpose_binary(self) -> bool:
         if self.settings.OS == "linux":
@@ -299,3 +321,26 @@ class DataRetriever:
             print(error_message)
 
         return success_only
+
+    def _align_on_z_axis(self):
+        # TO DO: main() on old script becomes this method
+        # TO DO: other functions on old script become accessory methods below
+        # TO DO: replace current pdbs under 'raw' with reoriented ones
+
+        """
+        align_on_z.py -d PH      -ref 2da0A00 -res1 19   -res2 42   -res3 50   -i raw        -o zaligned
+        align_on_z.py -d C2      -ref 1rsyA00 -res1 169  -res2 178  -res3 237  -i raw        -o zaligned
+        align_on_z.py -d START   -ref 2e3mA00 -res1 412  -res2 448  -res3 515  -i raw        -o orientationA
+        align_on_z.py -d START   -ref 2e3mA00 -res1 567  -res2 470  -res3 509  -i raw        -o orientationB
+        align_on_z.py -d C1      -ref 1ptrA00 -res1 243  -res2 257  -res3 237  -i raw        -o zaligned
+        align_on_z.py -d C2DIS   -ref 1czsA00 -res1 23   -res2 76   -res3 45   -i superposed -o zaligned
+        align_on_z.py -d PX      -ref 1h6hA00 -res1 33   -res2 74   -res3 100  -i superposed -o zaligned
+        align_on_z.py -d PLD     -ref 3rlhA00 -res1 59   -res2 205  -res3 198  -i superposed -o orientationOPM
+        align_on_z.py -d PLD     -ref 3rlhA00 -res1 53   -res2 41   -res3 99   -i superposed -o orientationCAGE
+        align_on_z.py -d ANNEXIN -ref 1a8aA01 -res1 25   -res2 68   -res3 77   -i superposed -o zaligned
+        align_on_z.py -d PLA     -ref 1pocA00 -res1 7    -res2 92   -res3 76   -i superposed -o zaligned
+        align_on_z.py -d SH2     -ref 2oq1A03 -res1 180  -res2 209  -res3 243  -i superposed -o zaligned
+        align_on_z.py -d FYVE    -ref 1jocA02 -res1 1373 -res2 1392 -res3 1382 -i superposed -o zaligned
+        align_on_z.py -d ENTH    -ref 1h0aA00 -res1 17   -res2 70   -res3 116  -i superposed -o zaligned
+        """
+        pass

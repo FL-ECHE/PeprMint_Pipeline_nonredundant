@@ -38,6 +38,7 @@ __status__ = "Prototype"
 
 import os
 import sys
+import platform
 from typing import Optional
 import configparser
 
@@ -107,11 +108,11 @@ class Settings:
 
     def _get_platform(self):
         # OS
-        if sys.platform == "linux":
+        if platform.system() == "Linux":
             self.OS = "linux"
-        elif sys.platform == "darwin":
+        elif platform.system() == "Darwin":
             self.OS = "macos"
-        elif sys.platform == "win32":
+        elif platform.system() == "Windows":
             self.OS = "windows"
         else:
             self.OS = None
@@ -153,12 +154,14 @@ class Settings:
             return False
 
         # TO DO: maybe check if given file indeed has all of the expected sections and fields?
-        self.config_file = configparser.ConfigParser()
+        self.config_file = configparser.ConfigParser(allow_no_value=True)
+        self.config_file.optionxform = str
         self.config_file.read(path)
         return True
 
     def _write_default_config_file(self, path: str):
         self.config_file = configparser.ConfigParser(allow_no_value=True)
+        self.config_file.optionxform = str
 
         self.config_file['GENERAL'] = {}
         # default folder: a new one in the current working directory
@@ -213,7 +216,76 @@ class Settings:
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_prefix'] = "https://www.ebi.ac.uk/interpro/api/entry/"
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_middle'] = "/protein/reviewed/"
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_suffix'] = "/?page_size=200"
-        
+
+        self.config_file['ALIGNMENT_ON_Z_AXIS'] = {}
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PH_pdb'] = "2da0A00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PH_res1'] = "19"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PH_res2'] = "42"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PH_res3'] = "50"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2_pdb'] = "1rsyA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2_res1'] = "169"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2_res2'] = "178"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2_res3'] = "237"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C1_pdb'] = "1ptrA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C1_res1'] = "243"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C1_res2'] = "257"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C1_res3'] = "237"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PX_pdb'] = "1h6hA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PX_res1'] = "33"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PX_res2'] = "74"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PX_res3'] = "100"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_FYVE_pdb'] = "1jocA02"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_FYVE_res1'] = "1373"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_FYVE_res2'] = "1392"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_FYVE_res3'] = "1382"
+        # TO DO: set a representative for the BAR domain
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_BAR_pdb') 
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_BAR_res1')  
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_BAR_res2')  
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_BAR_res3')
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ENTH_pdb'] = "1h0aA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ENTH_res1'] = "17"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ENTH_res2'] = "70"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ENTH_res3'] = "116"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_SH2_pdb'] = "2oq1A03"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_SH2_res1'] = "180"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_SH2_res2'] = "209"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_SH2_res3'] = "243"
+        # TO DO: set a representative for the SEC14 domain
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_SEC14_pdb') 
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_SEC14_res1')  
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_SEC14_res2')  
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_SEC14_res3')
+        comment_on_alignment_START = "# alternative orientation for START: 567 470 509"
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', comment_on_alignment_START)
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_START_pdb'] = "2e3mA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_START_res1'] = "412"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_START_res2'] = "448"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_START_res3'] = "515"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2DIS_pdb'] = "1czsA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2DIS_res1'] = "23"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2DIS_res2'] = "76"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_C2DIS_res3'] = "45"
+        # TO DO: set a representative for the GLA domain
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_GLA_pdb') 
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_GLA_res1')  
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_GLA_res2')  
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', 'ref_GLA_res3')
+        comment_on_alignment_PLD = "# alternative orientation (CAGE instead of OPM) for PLD: 53 41 99"
+        self.config_file.set('ALIGNMENT_ON_Z_AXIS', comment_on_alignment_PLD)
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLD_pdb'] = "3rlhA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLD_res1'] = "59"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLD_res2'] = "205"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLD_res3'] = "198"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLA_pdb'] = "1pocA00"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLA_res1'] = "7"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLA_res2'] = "92"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_PLA_res3'] = "76"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ANNEXIN_pdb'] = "1a8aA01"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ANNEXIN_res1'] = "25"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ANNEXIN_res2'] = "68"
+        self.config_file['ALIGNMENT_ON_Z_AXIS']['ref_ANNEXIN_res3'] = "77"
+
         self.config_file['IBS_TAGGING'] = {}
         self.config_file['IBS_TAGGING']['comparison_mode'] = str(False)
         

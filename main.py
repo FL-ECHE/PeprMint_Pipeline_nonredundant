@@ -62,8 +62,8 @@ def main():
     data_retriever.superpose()   # might take too much time to run within notebook
 
     # notebook #2
-    dataset_manager = DatasetManager(global_settings)
-    dataset_manager.build()   # build dataset from fetched data
+    #dataset_manager = DatasetManager(global_settings)
+    #dataset_manager.build()   # build dataset from fetched data
     #dataset_manager.load_light_dataset()   # load dataset built on a previous run
 
     # notebook #3
