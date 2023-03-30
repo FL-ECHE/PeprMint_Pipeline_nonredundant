@@ -46,13 +46,22 @@ __status__ = "Prototype"
 """
 
 import pandas as pd
+import numpy as np
+import vg
 from collections import defaultdict
+from tqdm import trange, tqdm
+
+from Bio import PDB
+from Bio.PDB import PDBParser
+from Bio.PDB import PDBIO
+from Bio.PDB.PDBExceptions import PDBConstructionWarning
 
 import os
 import stat
 from pathlib import Path
 import glob
 import subprocess
+import warnings
 
 import shutil
 import urllib
@@ -102,10 +111,11 @@ class DataRetriever:
         if not self._run_cath_superpose():
             return False
 
-        print(f"> Aligning superposed PDBs along z axis with respect to the domain representative")
-        return self._align_on_z_axis()
+        print(f"> Orienting superposed PDBs along z axis with respect to the domain representative")
+        return self._orient_on_z_axis()
 
     ############################################################################
+    # fetch-related methods below
 
     def _retrieve_cath_domains(self):
         # TO DO: release 4_2_0 or latest?
@@ -216,7 +226,7 @@ class DataRetriever:
                 dom_list = dom_list[0:self.settings.xp_domain_limit]
 
                 # make sure the reference pdb (to "align on z" later) is kept
-                ref_pdb = self.settings.config_file['ALIGNMENT_ON_Z_AXIS']["ref_"+domName+"_pdb"]
+                ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domName+"_pdb"]
                 if ref_pdb is not None and ref_pdb not in dom_list:
                     dom_list[0] = ref_pdb
 
@@ -235,6 +245,7 @@ class DataRetriever:
             urllib.request.urlretrieve(url, destination)
 
     ############################################################################
+    # superpose-related methods below
 
     def _fetch_cath_superpose_binary(self) -> bool:
         if self.settings.OS == "linux":
@@ -321,26 +332,195 @@ class DataRetriever:
             print(error_message)
 
         return success_only
+    
+    ############################################################################
+    # reorient-related methods below
 
-    def _align_on_z_axis(self):
-        # TO DO: main() on old script becomes this method
-        # TO DO: other functions on old script become accessory methods below
-        # TO DO: replace current pdbs under 'raw' with reoriented ones
+    def _orient_on_z_axis(self) -> bool:
+        success_only = True
+        error_message = ""
 
-        """
-        align_on_z.py -d PH      -ref 2da0A00 -res1 19   -res2 42   -res3 50   -i raw        -o zaligned
-        align_on_z.py -d C2      -ref 1rsyA00 -res1 169  -res2 178  -res3 237  -i raw        -o zaligned
-        align_on_z.py -d START   -ref 2e3mA00 -res1 412  -res2 448  -res3 515  -i raw        -o orientationA
-        align_on_z.py -d START   -ref 2e3mA00 -res1 567  -res2 470  -res3 509  -i raw        -o orientationB
-        align_on_z.py -d C1      -ref 1ptrA00 -res1 243  -res2 257  -res3 237  -i raw        -o zaligned
-        align_on_z.py -d C2DIS   -ref 1czsA00 -res1 23   -res2 76   -res3 45   -i superposed -o zaligned
-        align_on_z.py -d PX      -ref 1h6hA00 -res1 33   -res2 74   -res3 100  -i superposed -o zaligned
-        align_on_z.py -d PLD     -ref 3rlhA00 -res1 59   -res2 205  -res3 198  -i superposed -o orientationOPM
-        align_on_z.py -d PLD     -ref 3rlhA00 -res1 53   -res2 41   -res3 99   -i superposed -o orientationCAGE
-        align_on_z.py -d ANNEXIN -ref 1a8aA01 -res1 25   -res2 68   -res3 77   -i superposed -o zaligned
-        align_on_z.py -d PLA     -ref 1pocA00 -res1 7    -res2 92   -res3 76   -i superposed -o zaligned
-        align_on_z.py -d SH2     -ref 2oq1A03 -res1 180  -res2 209  -res3 243  -i superposed -o zaligned
-        align_on_z.py -d FYVE    -ref 1jocA02 -res1 1373 -res2 1392 -res3 1382 -i superposed -o zaligned
-        align_on_z.py -d ENTH    -ref 1h0aA00 -res1 17   -res2 70   -res3 116  -i superposed -o zaligned
-        """
-        pass
+        for domain in self.settings.active_superfamilies:
+            ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domain+"_pdb"]
+            if ref_pdb is None:
+                print(f"  Warning: no reference protein for '{domain}' defined on .config file - skipping reorientation along z")
+                continue
+            
+            # read pdbs in raw, save in temporary output folder, then replace them
+            raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
+            output_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/z_oriented/'
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            print(f"  '{domain}' orientation:")
+            rotation, translation = self._get_transformation_from_reference(domain)
+            print(f"  rotation matrix: {rotation}")
+            print(f"  translation vector: {translation}")
+            self._transform_pdbs(domain, rotation, translation)
+
+            # replace raw with reoriented
+            raw_files = len([name for name in os.listdir(raw_dir) if os.path.isfile(os.path.join(raw_dir, name))])
+            oriented_files = len([name for name in os.listdir(output_dir) if os.path.isfile(os.path.join(output_dir, name))])
+            if raw_files == oriented_files:
+                shutil.rmtree(raw_dir)
+                os.rename(output_dir, raw_dir)
+            else:
+                success_only = False
+                out = f"Error: reoriented file count for '{domain}' does not match raw file count\n"
+                out += "Check directory: " + output_dir + "\n"
+                error_message += out
+        
+        if not success_only:
+            print("Errors found while orienting along z axis:")
+            print(error_message)
+
+        return success_only
+
+    def _get_transformation_from_reference(self, domain):
+        raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
+        ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domain+"_pdb"]
+        structure =  self._get_structure(f"{raw_dir}/{ref_pdb}.pdb")
+
+        res1 = self.settings.config_file.getint('REORIENT_ALONG_Z', 'ref_'+domain+'_res1')
+        res2 = self.settings.config_file.getint('REORIENT_ALONG_Z', 'ref_'+domain+'_res2')
+        res3 = self.settings.config_file.getint('REORIENT_ALONG_Z', 'ref_'+domain+'_res3')
+
+        translation = self._get_translation_vector(structure, res1, res2, res3)
+        
+        structure = self._apply_translation_vector(structure, translation)
+        rotation = self._get_rotation_matrix(structure, res1, res2, res3, domain)
+
+        return (rotation,translation)
+
+    def _transform_pdbs(self,
+                        domain,
+                        rotation: np.array,       # rotation matrix (3x3)
+                        translation: np.array):   # translation vector (1x3)
+
+        raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
+        output_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/z_oriented/'
+        pdb_list = glob.glob(f"{raw_dir}/*.pdb")
+
+        for pdb_path in tqdm(pdb_list):
+            structure = self._get_structure(pdb_path)
+            structure = self._apply_translation_vector(structure,translation)
+            structure = self._apply_rotation_matrix(structure, rotation)
+
+            # write new file
+            pdb_io = PDBIO()
+            pdb_io.set_structure(structure)
+            pdb_io.save(f"{output_dir}/{structure.id}.pdb")
+
+    def _get_structure(self, pdb_path):
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', PDBConstructionWarning)
+
+                parser = PDB.PDBParser()
+                pdb_code = Path(pdb_path).stem   # filename without extension
+                return parser.get_structure(id = pdb_code, file = pdb_path)
+        except:
+            print(f"Reading Error: {pdb_path}")
+
+    def _get_translation_vector(self,
+                                structure: PDB.Structure.Structure,   # Biopython PDB Structure
+                                res1: int,
+                                res2: int,
+                                res3: int) -> np.array:
+        # Get the translation vector between the origin and the centroid of the
+        # triangle formed by the CA of three aminoacid residues
+        chain = structure[0].child_list[0].id
+        p1 = structure[0][chain][res1]['CA'].get_coord()
+        p2 = structure[0][chain][res2]['CA'].get_coord()
+        p3 = structure[0][chain][res3]['CA'].get_coord()
+
+        # translation vector (1x3)
+        return list(-np.mean(np.array([p1, p2, p3]), axis=0))
+
+    def _apply_translation_vector(self,
+                                  structure: PDB.Structure.Structure,   # Biopython PDB Structure
+                                  translation: np.array):   # (1x3) translation vector
+        # apply translation without rotation
+        null_rotation = np.identity(3).tolist()
+
+        structure[0].transform(null_rotation, translation)
+        return structure
+
+    def _apply_rotation_matrix(self,
+                               structure: PDB.Structure.Structure,   # Biopython PDB Structure
+                               rotation:np.array):   # (3x3) rotation matrix
+        # apply rotation without translation
+        structure[0].transform(rotation, [0, 0, 0])
+        return structure
+
+    def _get_rotation_matrix(self,
+                             structure: PDB.Structure.Structure,   # Biopython PDB Structure
+                             res1: int,
+                             res2: int,
+                             res3: int,
+                             domain: str,
+                             orientation = 'z') -> np.array:       # axis used for alignment
+        # Get the rotation matrix between the normal of a triangle formed by the CA 
+        # of three aminoacid residues and a plane (x,y,z)
+
+        def get_normal_COM(structure, res1, res2, res3):
+            # normal vector and and the geom. center of a structure
+
+            # compute vectors (get new coordinates - rotation with null translation)
+            chain = structure[0].child_list[0].id
+            p1 = structure[0][chain][res1]['CA'].get_coord()
+            p2 = structure[0][chain][res2]['CA'].get_coord()
+            p3 = structure[0][chain][res3]['CA'].get_coord()
+
+            # compute normal to the triangle: the cross product of two vectors
+            A = p2 - p1
+            B = p3 - p1
+            N = np.cross(A, B)
+
+            coords = np.array([x.get_coord() for x in structure.get_atoms()])
+            COM = coords.mean(axis=0)
+
+            return N, COM
+
+        def test_rotation(structure, res1, res2, res3):
+            # Recalculate angle etc...
+            N, COM = get_normal_COM(structure, res1, res2, res3)
+
+            # Recalculate angle
+            angle = vg.angle(N, np.array([0, 0, -1]))
+            return (angle == 0 and COM[2] > 0) or (angle == 180 and COM[2] > 0)
+
+        N,COM = get_normal_COM(structure, res1, res2, res3)
+
+        # This norm will be our translation vector to all our atoms
+        axis = {'x':[-1,0,0],
+                'y':[0,-1,0],
+                'z':[0,0,-1]}
+        #Create the reference vector, per default we want to align on the z axis so it will be [0,0,1]
+        refVector = PDB.vectors.Vector(axis[orientation])
+        normal = PDB.vectors.Vector(N) #The normal should be a biopython object
+
+        # Transformation 1
+        temp = structure.copy()
+
+        #case1 : normal and rotation
+        rotation = PDB.vectors.rotmat(normal, refVector)
+        temp.transform(rotation, [0, 0, 0])
+
+        #If it doesn't work, case2: -normal and rotation
+        if not test_rotation(temp, res1, res2, res3):
+            temp = structure.copy()
+            rotation = PDB.vectors.rotmat(-normal, refVector)
+            temp.transform(rotation, [0, 0, 0])
+            # If it doesn't work, case3: normal and rotation.T
+            if not test_rotation(temp, res1, res2, res3):
+                temp = structure.copy()
+                rotation = PDB.vectors.rotmat(normal, refVector).T
+                temp.transform(rotation, [0, 0, 0])
+                # If it doesn't work, case2: -normal and rotation.T
+                if not test_rotation(temp, res1, res2, res3):
+                    temp = structure.copy()
+                    rotation = PDB.vectors.rotmat(-normal, refVector).T
+
+        # (3x3) rotation matrix
+        return rotation

@@ -58,7 +58,7 @@ def main():
 
     # notebook #1
     data_retriever = DataRetriever(global_settings)
-    data_retriever.fetch()
+    #data_retriever.fetch()
     data_retriever.superpose()   # might take too much time to run within notebook
 
     # notebook #2
