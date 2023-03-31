@@ -48,22 +48,27 @@ import sys
 
 from src.settings import Settings
 from src.data_retriever import DataRetriever
+from src.preprocessing import Preprocessing
 from src.dataset_manager import DatasetManager
 from src.figure_generator import FigureGenerator
 
 def main():
     # notebook #0
     global_settings = Settings()   # setup reading standard configuration file
-    #global_settings = Settings("/opt/cbu/my.config")  # use different config file
+    #global_settings = Settings("/opt/cbu/my.config")  # different config file
 
     # notebook #1
     data_retriever = DataRetriever(global_settings)
-    #data_retriever.fetch()
-    data_retriever.superpose()   # might take too much time to run within notebook
+    data_retriever.fetch()
+
+    # superposition and reorientation of downloaded PDBs
+    # NB! Might take too much time and space to run within a notebook
+    preprocess = Preprocessing(global_settings)
+    preprocess.run()
 
     # notebook #2
-    #dataset_manager = DatasetManager(global_settings)
-    #dataset_manager.build()   # build dataset from fetched data
+    dataset_manager = DatasetManager(global_settings)
+    dataset_manager.build()   # build dataset from fetched data
     #dataset_manager.load_light_dataset()   # load dataset built on a previous run
 
     # notebook #3
