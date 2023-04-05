@@ -64,12 +64,15 @@ class Settings:
             print("***          Use results obtained in this mode with caution")
             print("***          To turn it off, change 'xp_mode' to False in the config file\n")
 
-            self.xp_domain_limit = self.config_file.getint(
-                'EXPERIMENTAL_MODE','xp_mode_max_entries_per_domain')
+            self.xp_cath_limit = self.config_file.getint(
+                'EXPERIMENTAL_MODE','xp_mode_max_cath_entries_per_domain')
+            self.xp_alphafold_limit = self.config_file.getint(
+                'EXPERIMENTAL_MODE','xp_mode_max_alphafold_entries_per_domain')
             self.PARALLEL = self.config_file.getboolean(
                 'EXPERIMENTAL_MODE', 'xp_mode_allow_parallel')
         else:
-            self.xp_domain_limit = None
+            self.xp_cath_limit = None
+            self.xp_alphafold_limit = None
             self.PARALLEL = True
 
         self.num_threads = 1 if not self.PARALLEL else self.config_file.getint(
@@ -170,24 +173,25 @@ class Settings:
         self.config_file['GENERAL']['include_PH'] = str(True)
         self.config_file['GENERAL']['include_C2'] = str(True)
         self.config_file['GENERAL']['include_C1'] = str(True)
-        self.config_file['GENERAL']['include_PX'] = str(True)
-        self.config_file['GENERAL']['include_FYVE'] = str(True)
-        self.config_file['GENERAL']['include_BAR'] = str(True)
-        self.config_file['GENERAL']['include_ENTH'] = str(True)
-        self.config_file['GENERAL']['include_SH2'] = str(True)
-        self.config_file['GENERAL']['include_SEC14'] = str(True)
-        self.config_file['GENERAL']['include_START'] = str(True)
-        self.config_file['GENERAL']['include_C2DIS'] = str(True)
-        self.config_file['GENERAL']['include_GLA'] = str(True)
-        self.config_file['GENERAL']['include_PLD'] = str(True)
-        self.config_file['GENERAL']['include_PLA'] = str(True)
-        self.config_file['GENERAL']['include_ANNEXIN'] = str(True)
+        self.config_file['GENERAL']['include_PX'] = str(False)
+        self.config_file['GENERAL']['include_FYVE'] = str(False)
+        self.config_file['GENERAL']['include_BAR'] = str(False)
+        self.config_file['GENERAL']['include_ENTH'] = str(False)
+        self.config_file['GENERAL']['include_SH2'] = str(False)
+        self.config_file['GENERAL']['include_SEC14'] = str(False)
+        self.config_file['GENERAL']['include_START'] = str(False)
+        self.config_file['GENERAL']['include_C2DIS'] = str(False)
+        self.config_file['GENERAL']['include_GLA'] = str(False)
+        self.config_file['GENERAL']['include_PLD'] = str(False)
+        self.config_file['GENERAL']['include_PLA'] = str(False)
+        self.config_file['GENERAL']['include_ANNEXIN'] = str(False)
 
 
         self.config_file['EXPERIMENTAL_MODE'] = {}
-        self.config_file['EXPERIMENTAL_MODE']['xp_mode'] = str(False)
-        self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_entries_per_domain'] = "20"
+        self.config_file['EXPERIMENTAL_MODE']['xp_mode'] = str(True)
         self.config_file['EXPERIMENTAL_MODE']['xp_mode_allow_parallel'] = "False"
+        self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_cath_entries_per_domain'] = "3"
+        self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_alphafold_entries_per_domain'] = "3"
 
         self.config_file['CATH'] = {}
         self.config_file['CATH']['version'] = 'v4_2_0'
@@ -374,6 +378,7 @@ class Settings:
     def define_folders(self):
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
         self.CATHFOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/"
+        self.REF_FOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/ref/"
         self.ALPHAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alphafold/"
         self.PROSITEFOLDER = f"{self.PEPRMINT_FOLDER}/databases/prosite/"
         self.UNIPROTFOLDER = f"{self.PEPRMINT_FOLDER}/databases/uniprot/"
@@ -406,6 +411,8 @@ class Settings:
             os.makedirs(self.PROSITEFOLDER)
         if not os.path.exists(self.CATHFOLDER):
             os.makedirs(self.CATHFOLDER)
+        if not os.path.exists(self.REF_FOLDER):
+            os.makedirs(self.REF_FOLDER)
 
     # TO DO: move the correspondences below to the .config file?
     def map_cath_and_prosite(self):

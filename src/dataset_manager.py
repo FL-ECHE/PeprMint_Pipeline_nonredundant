@@ -135,9 +135,9 @@ class DatasetManager:
         print("Dataset 'data_type' in: ")
         print(list(self.DATASET.data_type.unique()))
 
-    def add_alphafold_data(self,
-                           EXCLUDE_SEQS: Optional[list] = None,
-                           EXCLUDE_DOMAIN: Optional[list] = None):
+    def fetch_alphafold_data(self,
+                             EXCLUDE_SEQS: Optional[list] = None,
+                             EXCLUDE_DOMAIN: Optional[list] = None):
 
         # Fetches AF data for domains in the current dataset
         # Originally on Notebook #3; ported to alphafold_utils.py
@@ -146,8 +146,7 @@ class DatasetManager:
                                  EXCLUDE_SEQS,
                                  EXCLUDE_DOMAIN)
 
-        print("Updating dataset with AlphaFold data")
-        self.build(recalculate=True)
+        print("AlphaFold data fetched successfully; update dataset manager with build(recalculate=True)")
 
     def add_IBS_data(self):
         # Interfacial binding sites (IBS) tagging in the dataset

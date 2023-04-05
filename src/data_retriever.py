@@ -77,6 +77,7 @@ class DataRetriever:
             self._retrieve_uniprot_to_pdb_correspondence()
             self._retrieve_prosite()
             self._retrieve_cath_pdb_files()
+            self._copy_ref_pdb_files()
             return True
 
     def _retrieve_cath_domains(self):
@@ -184,8 +185,8 @@ class DataRetriever:
         dom_list = self.cath_domains_per_superfamily[superfamily]
 
         # limit the dataset size when experimenting only
-        if self.settings.XP_MODE and len(dom_list) > self.settings.xp_domain_limit:
-                dom_list = dom_list[0:self.settings.xp_domain_limit]
+        if self.settings.XP_MODE and len(dom_list) > self.settings.xp_cath_limit:
+                dom_list = dom_list[0:self.settings.xp_cath_limit]
 
                 # make sure the reference pdb (to "align on z" later) is kept
                 ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domName+"_pdb"]
@@ -205,3 +206,10 @@ class DataRetriever:
         destination = folder + dom + '.pdb'
         if not os.path.isfile(destination): 
             urllib.request.urlretrieve(url, destination)
+
+    def _copy_ref_pdb_files(self):
+        # keep a copy of the raw pdb for the reference protein in each superfamily
+        for domain in self.settings.active_superfamilies:
+            ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domain+"_pdb"]
+            if ref_pdb is not None:
+                self._fetch_pdb_from_cath_dom(ref_pdb, self.settings.REF_FOLDER)

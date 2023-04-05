@@ -66,13 +66,25 @@ class Preprocessing:
     def __init__(self, global_settings: Settings):
         self.settings = global_settings
         self.superpose_tool = None
+        self.cwd_prefix = None
+        self.cwd_suffix = None
 
-    def run(self) -> bool:
+    def run(self, database: str, verbose=False) -> bool:
         """
         Proxy method for running the superposition over downloaded PDBs 
         (cath-superpose external tool, with built-in SSAP for all-vs-all 
         pairwise structure alignment) and the reorientation along the z axis.
         """
+        if database == "cath":
+            self.cwd_prefix = self.settings.CATHFOLDER + 'domains/'
+            self.cwd_suffix = '/raw'
+        elif database == "alphafold":
+            self.cwd_prefix = self.settings.ALPHAFOLDFOLDER
+            self.cwd_suffix = '/extracted'
+        else:
+            print(f"> Did not recognize option '{database}' to run preprocessing")
+            print(f"  Please use either 'cath' or 'alphafold'")
+            return False
         
         print(f"> Superposing downloaded PDBs with cath-superpose and SSAP alignments")
 
@@ -80,11 +92,11 @@ class Preprocessing:
             return False
 
         # TO DO: consider adding an option to avoid overwriting downloaded PDBs with superimposed ones
-        if not self._run_cath_superpose():
+        if not self._run_cath_superpose(verbose):
             return False
 
         print(f"> Orienting superposed PDBs along z axis with respect to the domain representative")
-        return self._orient_on_z_axis()
+        return self._orient_on_z_axis(verbose)
 
 
     ############################################################################
@@ -116,21 +128,21 @@ class Preprocessing:
         for domain in self.settings.active_superfamilies:
             # temporary output folders
             # TO DO: if the alignments are not needed, remove the --do-the-ssaps option
-            output_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/super/'
+            output_dir = self.cwd_prefix + domain + '/super/'
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
-            tmp_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/cath_tools_tmp/'
+            tmp_dir = self.cwd_prefix + domain + '/cath_tools_tmp/'
             if not os.path.exists(tmp_dir):
                 os.makedirs(tmp_dir)
 
             # domain files as arguments to cath-superpose
-            filelist = Path(self.settings.CATHFOLDER).glob(f"domains/{domain}/raw/*.pdb")
+            filelist = Path(self.cwd_prefix).glob(f"{domain}{self.cwd_suffix}/*.pdb")
             run_input = ""
             for f in filelist:
                 run_input += "--pdb-infile " + str(f) + " "
 
             # need to export environment var for cath-ssap
-            raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
+            raw_dir = self.cwd_prefix + domain + self.cwd_suffix
             env_setting = f"export CATH_TOOLS_PDB_PATH={raw_dir} ; "
 
             # run cath-superpose
@@ -167,7 +179,7 @@ class Preprocessing:
                 os.rename(output_dir, raw_dir)
             else:
                 success_only = False
-                out = f"Error: superposed file count for {domain} does not match raw file count\n"
+                out = f"Error: superposed file count for {domain} does not match '{self.cwd_suffix}' file count\n"
                 out += "Check directory: " + output_dir + "\n"
                 error_message += out
         
@@ -191,8 +203,8 @@ class Preprocessing:
                 continue
             
             # read pdbs in raw, save in temporary output folder, then replace them
-            raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
-            output_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/z_oriented/'
+            raw_dir = self.cwd_prefix + domain + self.cwd_suffix
+            output_dir = self.cwd_prefix + domain + '/z_oriented/'
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
 
@@ -212,7 +224,7 @@ class Preprocessing:
                 os.rename(output_dir, raw_dir)
             else:
                 success_only = False
-                out = f"Error: reoriented file count for '{domain}' does not match raw file count\n"
+                out = f"Error: reoriented file count for '{domain}' does not match '{self.cwd_suffix}' file count\n"
                 out += "Check directory: " + output_dir + "\n"
                 error_message += out
         
@@ -223,9 +235,10 @@ class Preprocessing:
         return success_only
 
     def _get_transformation_from_reference(self, domain):
-        raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
+        # TO DO: The reference PDB is the cath one, even when reorienting alphafold files... right?
+        ref_dir = self.settings.REF_FOLDER
         ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domain+"_pdb"]
-        structure =  self._get_structure(f"{raw_dir}/{ref_pdb}.pdb")
+        structure =  self._get_structure(f"{ref_dir}/{ref_pdb}.pdb")
 
         res1 = self.settings.config_file.getint('REORIENT_ALONG_Z', 'ref_'+domain+'_res1')
         res2 = self.settings.config_file.getint('REORIENT_ALONG_Z', 'ref_'+domain+'_res2')
@@ -243,8 +256,8 @@ class Preprocessing:
                         rotation: np.array,       # rotation matrix (3x3)
                         translation: np.array):   # translation vector (1x3)
 
-        raw_dir = self.settings.CATHFOLDER + 'domains/' + domain + "/raw"
-        output_dir = self.settings.CATHFOLDER + 'domains/' + domain + '/z_oriented/'
+        raw_dir = self.cwd_prefix + domain + self.cwd_suffix
+        output_dir = self.cwd_prefix + domain + '/z_oriented/'
         pdb_list = glob.glob(f"{raw_dir}/*.pdb")
 
         for pdb_path in tqdm(pdb_list):

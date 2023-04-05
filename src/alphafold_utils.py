@@ -79,6 +79,8 @@ class AlphaFoldUtils:
         self.use_all_AFmodels = self.settings.config_file.getboolean(
             'ALPHAFOLD_UTILS', 'use_all_AFmodels')
 
+        self.REGEX = re.compile("^(\w+)\|(\w+)\/(\d+)-(\d+)")
+
     def _libs_setup(self):
         # Seaborn
         sns.set_style("darkgrid")
@@ -106,7 +108,6 @@ class AlphaFoldUtils:
         print(f"Preparing AlphaFold data")
 
         self.dataset = df
-        self.REGEX = re.compile("^(\w+)\|(\w+)\/(\d+)-(\d+)")
 
         if EXCLUDE_SEQS is not None:
             print("User option: excluding list ", end='')
@@ -125,7 +126,7 @@ class AlphaFoldUtils:
         # TO DO: move these to a proper method
         #self._test_printing_msa_dir()
         #self._test_query()
-        self.dataset.groupby("cathpdb")
+        #self.dataset.groupby("cathpdb")
 
 
     """
@@ -134,7 +135,6 @@ class AlphaFoldUtils:
 
     def extract_domains_seqs_from_alphafold(self, EXCLUDE_SEQS, EXCLUDE_DOMAIN):
         domains = self.dataset.domain.unique()
-        #domains = ['PLA']
 
         for domain in domains:
             if domain in EXCLUDE_DOMAIN:
@@ -145,8 +145,6 @@ class AlphaFoldUtils:
             group = self.dataset.query("domain == @domain")
 
             uniprot_acc_cathpdb = group.query("data_type == 'cathpdb'").uniprot_acc.unique()
-
-            seqs_no_pdb = group[group["pdb"].isnull()].uniprot_acc.unique()
 
             boundaries_prosite = self._get_prosite_boundaries_dict(domain)
 
@@ -160,6 +158,8 @@ class AlphaFoldUtils:
                 seqs_with_model, seqs_without_model = self._fetch_pdb_alphafold(uniprot_acc_list, 
                                                                                 domain)
             else:
+                seqs_no_pdb = group[group["pdb"].isnull()].uniprot_acc.unique()
+
                 seqs_with_model, seqs_without_model = self._fetch_pdb_alphafold(seqs_no_pdb, 
                                                                                 domain)
 
@@ -191,8 +191,8 @@ class AlphaFoldUtils:
         if type(prosite_ids) != type([]):
             prosite_ids = [prosite_ids]
 
-        for msafile in prosite_ids:
-            msafilepath = f"{self.settings.PROSITEFOLDER}/msa/{msafile}.msa"
+        for prosite_id in prosite_ids:
+            msafilepath = f"{self.settings.PROSITEFOLDER}/msa/{prosite_id}.msa"
             msa = AlignIO.read(msafilepath,'fasta')
             for record in msa:
                 seqid = record.id
@@ -228,19 +228,28 @@ class AlphaFoldUtils:
         prefix = self.settings.config_file['ALPHAFOLD_UTILS']['AF_pdbs_url_prefix']
         suffix = self.settings.config_file['ALPHAFOLD_UTILS']['AF_pdbs_url_suffix']
 
-        for uniprot_id in tqdm(uniprotids, desc="Downloading "):
+        ids_iterator = tqdm(uniprotids, desc="Downloading ")
+
+        if self.settings.XP_MODE:
+            # the tail of the list contains the ids for entries in cath, so we keep those
+            uniprotids.reverse()
+            ids_iterator = uniprotids
+
+        for uniprot_id in ids_iterator:
             url = prefix + uniprot_id + suffix
             destination = f"{outfolder}/{uniprot_id}.pdb"
             if not os.path.isfile(destination): 
                 try:
                     urllib.request.urlretrieve(url, destination)
+                    withmodels.append(uniprot_id)
+                    if self.settings.XP_MODE and len(withmodels) >= self.settings.xp_alphafold_limit:
+                        break
                 except urllib.error.HTTPError as err:
                     nomodels.append(uniprot_id)
-                    continue
-            withmodels.append(uniprot_id)
 
-        rate = len(nomodels)/len(uniprotids) if len(uniprotids) > 0 else 0
-        print(f"{len(nomodels)} out of {len(uniprotids)} without alphafold2 models ({rate*100:.2f}%)")
+        total = len(nomodels) + len(withmodels)
+        rate = len(nomodels)/total if len(uniprotids) > 0 else 0
+        print(f"{len(nomodels)} out of {total} without AlphaFold models ({rate*100:.2f}%)")
 
         return withmodels, nomodels
 
@@ -338,8 +347,8 @@ class AlphaFoldUtils:
             prosite_ids = self.settings.DOMAIN_PROSITE[domain]
             if type(prosite_ids) != type([]):
                 prosite_ids = [prosite_ids]
-            for msafile in prosite_ids:
-                msafilepath = f"{self.settings.PROSITEFOLDER}/msa/{msafile}.msa"
+            for prosite_id in prosite_ids:
+                msafilepath = f"{self.settings.PROSITEFOLDER}/msa/{prosite_id}.msa"
                 msa = AlignIO.read(msafilepath, 'fasta')
                 print(dir(msa))
 
