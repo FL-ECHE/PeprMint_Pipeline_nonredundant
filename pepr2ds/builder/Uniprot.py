@@ -52,8 +52,9 @@ from requests.adapters import HTTPAdapter, Retry
 from typing import Optional, List
 
 
-POLLING_INTERVAL = 3
 API_URL = "https://rest.uniprot.org"
+POLLING_INTERVAL = 3
+MAX_TRIES_UPON_FAILED_REQUESTS = 5
 
 
 retries = Retry(total=5, backoff_factor=0.25, status_forcelist=[500, 502, 503, 504])
@@ -70,12 +71,23 @@ def check_response(response):
 
 
 def submit_id_mapping(from_db, to_db, ids):
-    request = requests.post(
-        f"{API_URL}/idmapping/run",
-        data={"from": from_db, "to": to_db, "ids": ",".join(ids)},
-    )
-    check_response(request)
-    return request.json()["jobId"]
+    attempt = 1
+    while attempt <= MAX_TRIES_UPON_FAILED_REQUESTS:
+        try:
+            request = requests.post(
+                f"{API_URL}/idmapping/run",
+                data={"from": from_db, "to": to_db, "ids": ",".join(ids)},
+            )
+            check_response(request)
+            return request.json()["jobId"]
+        except:
+            if attempt < MAX_TRIES_UPON_FAILED_REQUESTS:
+                print(f"Got code {request.status_code} (should be 'ok'=={requests.codes.ok})")
+                print(f"Retrying in {POLLING_INTERVAL}s")
+                time.sleep(POLLING_INTERVAL)
+                ++attempt
+            else:
+                raise
 
 
 def get_next_link(headers):
