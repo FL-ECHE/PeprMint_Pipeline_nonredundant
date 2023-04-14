@@ -176,15 +176,10 @@ class Dataset():
 
         df["matchIndex"] = list(range(len(df)))
 
-        #If SH2, clean with CHO data
-
-        from sys import platform
-        if platform == "linux" or platform == "linux2":
-            sh2_cho = "/mnt/g/clouds/OneDrive - University of Bergen/projects/peprmint/data/Cho_SH2_transformed.xlsx"
-        else:
-            sh2_cho = "/Users/thibault/OneDrive - University of Bergen/projects/peprmint/data/Cho_SH2_transformed.xlsx"
-
         if domain == 'SH2':
+            # TO DO: get excel sheet to clean SH2 superfamily with CHO data
+            sh2_cho = f"{self.PEPRMINT_FOLDER}/databases/Cho_SH2_transformed.xlsx"
+
             cho = pd.read_excel(
                 sh2_cho,
             engine='openpyxl').dropna(subset=["Range"])
@@ -251,7 +246,7 @@ class Dataset():
 
             if not coordinates_folder_name is None:
                 if base_folder == 'cath':
-                    base_folder = f"{self.CATHFOLDER}/domains"
+                    base_folder = f"{self.CATHFOLDER}domains"
                 else:
                     base_folder = f"{self.PEPRMINT_FOLDER}/databases/{base_folder}"
 
@@ -272,6 +267,7 @@ class Dataset():
                         if not os.path.isfile(f"{coordinates_folder}/{pdb}.pdb"):
                             return None
                         pl1 = PandasPdb().read_pdb(f"{coordinates_folder}/{pdb}.pdb").df["ATOM"]
+
                         # When sometimes we remove duplicated residues we have to be sure that we update
                         # the residues list we take from the new coordinates files
                         residues_number_list = group.residue_name.unique()
@@ -323,7 +319,7 @@ class Dataset():
 
         if "LDCI" not in df.columns:
             if not silent:
-                print("taggin MLIP")
+                print("tagging MLIP")
             if not silent:
                 df = df.groupby("cathpdb").progress_apply(tag_MLIP)
             else:
@@ -333,7 +329,7 @@ class Dataset():
 
 
         if not silent:
-            print("taggin IBS")
+            print("tagging IBS")
             ibs_nonibs = df.groupby('cathpdb').progress_apply(
                 lambda x: self.get_ibs_and_non_ibs(x, extendSS, onlyC, excludeStrand,extendCoilOnly))
         else:
@@ -545,7 +541,8 @@ class Dataset():
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', PDBConstructionWarning)
             structure = parser.get_structure(id=idpdb,
-                                             file=f"/Users/thibault/Documents/WORK/peprmint/databases/cath/domains/{self.domainLabel}/{folder}/{idpdb}.pdb")
+                                             file=f"{self.PEPRMINT_FOLDER}/databases/cath/domains/{self.domainLabel}/{folder}/{idpdb}.pdb")
+
 
 
         view = nv.show_biopython(structure)

@@ -64,10 +64,31 @@ from src.notebook_handle import NotebookHandle
 
 class IBSTagging:
 
-    def __init__(self, global_settings: Settings):
+    def __init__(self, global_settings: Settings, data_type: str):
         self.settings = global_settings
 
-        self.data_type = self.settings.config_file['IBS_TAGGING']['data_type']
+        # data_type can be cath, alphafold, or cath+af (NB! do not change this as they are pepr2ds settings)
+        self.data_type = data_type
+        if data_type not in ["cath", "alphafold", "cath+af"]:
+            self.data_type = "cath+af"
+            print(f"> Warning: did not recognize option '{data_type}' to IBSTagging constructor")
+            print(f"           - defaulting to 'cath+af'")
+
+        # TO DO: I'm not satisfied with how we handle these possibilities; review options after completing IBSTagging with AF data
+        self.coordinates_folder = self.settings.ALIGNED_SUBDIR
+        if self.settings.config_file.getboolean('PREPROCESSING', 'overwrite_original_pdbs'):
+            print(f"> Warning: preprocessing option 'overwrite_original_pdbs' is on in the config file")
+            if data_type == "cath":
+                print(f"           - assuming aligned files are under 'raw'")
+                self.coordinates_folder = 'raw'
+            elif data_type == "alphafold":
+                print(f"           - assuming aligned files are under 'extracted'")
+                self.coordinates_folder = 'extracted'
+            else:
+                # TO DO: should both cath/domains/* and alphafold/* be copied to databases/aligned_cath-AF
+                print(f"           conflicts with IBSTagging constructor argument data_type = {data_type}!")
+                print(f"           - assuming aligned files are under {self.coordinates_folder}")
+
         self.cluster_level = self.settings.config_file['IBS_TAGGING']['cluster_level']
         self.uniref_level = self.settings.config_file['IBS_TAGGING']['uniref_level']
         self.z_axis_level = self.settings.config_file.getint(
@@ -75,9 +96,12 @@ class IBSTagging:
         self.comparison_mode = self.settings.config_file.getboolean(
             'IBS_TAGGING', 'comparison_mode')
 
+        # TO DO: needs revision! Unless the other "tools notebook" has something new, this would make tagibs.py get a wrong path on line 251
         self.alignment_folder = 'cath' if self.data_type == "cath" else 'aligned_cath-AF'
 
-        self.dataset = None
+        self.pepr2ds_dataset = None          # the resulting Dataset (from pepr2ds.dataset.tagibs) instance, after merging
+        self._df = None                      # the input pandas dataframe
+        self._superfamily_to_pepr2ds = {}    # temporary map (pre-merging) Dataset instances from each superfamily
 
         self._libs_setup()
 
@@ -100,33 +124,32 @@ class IBSTagging:
         sns.set_style("darkgrid")
 
     def run(self, df: pd.DataFrame):
-        self.dataset = df
-        self._PH_domain_preprocessing()
-        self._tag_PH()
-        self._tag_C2()
-        self._tag_START()
-        self._tag_C1()
-        self._tag_C2DIS()
-        self._tag_PX()
-        self._tag_PLD()
-        self._tag_ANNEXIN()
-        self._tag_PLA()
-        self._merge_datasets()
+        self._df = df
+
+        if self.settings.use_PH:
+            self._PH_domain_preprocessing()
+
+        print("> Tagging IBS")
+        for superfamily in self.settings.active_superfamilies:
+            print(f"  {superfamily}... ", end='')
+            self._tag_superfamily(superfamily)
+            print("done")
+        
+        self.pepr2ds_dataset = self._merge_data()
+
+    def make_analysis_report(self):
+        if self.pepr2ds_dataset is not None:
+            # TO DO: these seem like bug fixes (from Notebook #4)... maybe should be elsewhere
+            self.pepr2ds_dataset.domainDf.residue_name = self.pepr2ds_dataset.domainDf.residue_name.astype(str)
+            self.pepr2ds_dataset.domainDf.domain = self.pepr2ds_dataset.domainDf.domain.astype(str)
+
+            self.pepr2ds_dataset.analysis.report(displayHTML=False)
+        else:
+            print("Error: cannot make analysis report without completing IBSTagging.run() successfully")
 
     """
     ### All methods below just encapsulate the steps in the original notebook
     """
-
-    # Set of Uniref structures to take for comparison test (between AF and Cath)
-    def _get_uniprot_in_common(self, domain):
-        cathcluster_uniprot = (self.dataset.query("domain == @domain and data_type == 'cathpdb'")
-                               .uniprot_acc
-                               .unique())
-        AFcluster_uniprot = (self.dataset.query("domain == @domain and data_type == 'alphafold'")
-                             .uniprot_acc
-                             .unique())
-
-        return list(set(AFcluster_uniprot).intersection(cathcluster_uniprot))
 
     def _PH_domain_preprocessing(self):
         """
@@ -154,276 +177,76 @@ class IBSTagging:
 
         pdbs_to_remove = pdb_PTB+pdb_RANDB+pdb_EVH
 
-        removeS60 = (self.dataset
+        removeS60 = (self._df
                      .query("domain == 'PH' and pdb in @pdbs_to_remove")
                      ["S60"]
                      .unique())
-        cathpdbs_to_remove = (self.dataset
+        cathpdbs_to_remove = (self._df
                               .query("domain == 'PH' and S60 in @removeS60")
                               .cathpdb
                               .unique())
 
-        #print(f"{len(cathpdbs_to_remove)} 'fake' PH entries removed; csv saved under figures folder")
-        self.dataset = self.dataset.query("cathpdb not in @cathpdbs_to_remove")
+        print(f"{len(cathpdbs_to_remove)} 'fake' PH entries removed; csv saved under figures folder")
+        self._df = self._df.query("cathpdb not in @cathpdbs_to_remove")
 
         pd.DataFrame(cathpdbs_to_remove).to_csv(f"{self.settings.FIGURESFOLDER}/Fake_PH.csv",
                                                 index = False,
                                                 header = False)
 
-    def _tag_PH(self):
-        print("PH")
-        filter_uniprot_acc = self._get_uniprot_in_common("PH") if self.comparison_mode else None
-        self.PH = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.PH.tag_ibs(self.dataset, 
-                    domain = 'PH', #Domain
-                    pdbreference = "2da0A00", #PDB Template
-                    includeResidueRange = [[20,26],[42,50]], #Include those residues in IBS
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = 'zaligned', #Where are the PDBs
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
+    def _tag_superfamily(self, superfamily: str):
+        ref_pdb = self.settings.config_file['PREPROCESSING']["ref_"+superfamily+"_pdb"]
+        if ref_pdb is None:
+            print(f"  Warning: no reference protein for '{domain}' defined on .config file - skipping IBS tagging")
+            return
 
+        filter_uniprot_acc = self._get_uniprot_in_common(superfamily) if self.comparison_mode else None
 
-    def _tag_C2(self):
-        print("C2")
-        filter_uniprot_acc = self._get_uniprot_in_common("C2") if self.comparison_mode else None
-        self.C2 = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.C2.tag_ibs(self.dataset, 
-                    domain = 'C2', #Domain
-                    pdbreference = "1rsyA00",
-                    includeResidueRange = [[171,177],[232,238]], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = 'zaligned', #Where are the PDBs 
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout,
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
+        self._superfamily_to_pepr2ds[superfamily] = Dataset(self._df, self.settings.PEPRMINT_FOLDER)
+        self._superfamily_to_pepr2ds[superfamily].tag_ibs(
+                self._df, 
+                domain = superfamily,
+                pdbreference = ref_pdb,
+                includeResidueRange = [],                          # not used when overide_axis_mode = True
+                excludeResidueRange=[],                            # not used when overide_axis_mode = True
+                extendSS=False,                                    # extend the secondary structures
+                withAlignment=False,                               # restrict the results with pdb that have a sequences
+                onlyC=False,                                       # get only COIL in the IBS
+                cathCluster=self.cluster_level,                    # structure redundancy filter
+                Uniref=self.uniref_level,                          # sequence redundancy filter
+                addSequence=False,                                 # add the non structural data in the IBS/NONIBS dataset
+                extendAlign=False,                                 # extend the secondary structure instead of a raw "cut" based on the alignment position
+                excludeStrand=False,                               # exclude "strand" From secondary structure
+                overide_axis_mode = True,                          # use the z axis instead of the alignment to tag the IBS
+                zaxis=self.z_axis_level,                           # z axis plane to define "IBS" or not IBS
+                extendCoilOnly = False,                            # extend coil only
+                coordinates_folder_name = self.coordinates_folder,
+                data_type = self.data_type,
+                base_folder= self.alignment_folder,
+                silent=True,
+                filter_uniprot_acc = filter_uniprot_acc)           # Give a set of Uniref structure to take for comparison test (between AF and Cath)
 
-    def _tag_START(self):
-        print("START")
-        filter_uniprot_acc = self._get_uniprot_in_common("START") if self.comparison_mode else None
-        self.STARTo1 = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.STARTo1.tag_ibs(self.dataset, 
-                    domain = 'START', #Domain
-                    pdbreference = "2e3mA00",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "orientationA",
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout  
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-        )
+    # Set of Uniref structures to take for comparison test (between AF and Cath)
+    def _get_uniprot_in_common(self, domain):
+        cathcluster_uniprot = (self._df.query("domain == @domain and data_type == 'cathpdb'")
+                               .uniprot_acc
+                               .unique())
+        AFcluster_uniprot = (self._df.query("domain == @domain and data_type == 'alphafold'")
+                             .uniprot_acc
+                             .unique())
 
-    def _tag_C1(self):
-        print("C1")
-        filter_uniprot_acc = self._get_uniprot_in_common("C1") if self.comparison_mode else None
-        self.C1 = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.C1.tag_ibs(self.dataset, 
-                    domain = 'C1', #Domain
-                    pdbreference = "1ptrA00",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "zaligned",
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout 
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
+        return list(set(AFcluster_uniprot).intersection(cathcluster_uniprot))
 
-    def _tag_C2DIS(self):
-        print("C2DIS")
-        filter_uniprot_acc = self._get_uniprot_in_common("C2DIS") if self.comparison_mode else None
-        self.C2DIS = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.C2DIS.tag_ibs(self.dataset, 
-                    domain = 'C2DIS', #Domain
-                    pdbreference = "1czsA00",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "zaligned",
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout   
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
-
-    def _tag_PX(self):
-        print("PX")
-        filter_uniprot_acc = self._get_uniprot_in_common("PX") if self.comparison_mode else None
-        self.PX = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.PX.tag_ibs(self.dataset, 
-                    domain = 'PX', #Domain
-                    pdbreference = "1h6hA00",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "zaligned",
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout   
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
-
-    def _tag_PLD(self):
-        print("PLD")
-        filter_uniprot_acc = self._get_uniprot_in_common("PLD") if self.comparison_mode else None
-        self.PLDopm = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.PLDopm.tag_ibs(self.dataset, 
-                    domain = 'PLD', #Domain
-                    pdbreference = "3rlhA00",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "orientationOPM" ,
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout   
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
-
-    def _tag_ANNEXIN(self):
-        print("ANNEXIN")
-        filter_uniprot_acc = self._get_uniprot_in_common("ANNEXIN") if self.comparison_mode else None
-        self.ANNEXIN = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.ANNEXIN.tag_ibs(self.dataset, 
-                    domain = 'ANNEXIN', #Domain
-                    pdbreference = "1a8aA01",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "zaligned",
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout   
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)
-                  )
-
-    def _tag_PLA(self):
-        print("PLA")
-        filter_uniprot_acc = self._get_uniprot_in_common("PLA") if self.comparison_mode else None
-        self.PLA = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
-        self.PLA.tag_ibs(self.dataset, 
-                    domain = 'PLA', #Domain
-                    pdbreference = "1pocA00",
-                    includeResidueRange = [], #CHANGE 173 to 171 and run again!
-                    excludeResidueRange=[], #Exclude those residues from IBS
-                    extendSS=False, #Extend the secondary structures
-                    withAlignment=False, #restrict the results with pdb that have a sequences.
-                    onlyC=False, #get only COIL in the IBS.
-                    cathCluster=self.cluster_level, #Structure redundancy filter
-                    Uniref=self.uniref_level, #Sequence redundancy filter
-                    addSequence=False, #add the non structural data in the IBS/NONIBS dataset.
-                    extendAlign=False, #Extend the secondary structure instead of a raw "cut" based on the alignment position
-                    excludeStrand=False, #Exclude "strand" From secondary structure
-                    overide_axis_mode = True, #use the Zaxis instead of the alignment to tag the IBS
-                    zaxis=self.z_axis_level, #Z axis plane to define "IBS" or not IBS
-                    extendCoilOnly = False, #Extend coil only.
-                    coordinates_folder_name = "zaligned",
-                    data_type = self.data_type, #Type of data asked ('cath' or 'alfafold' or 'cath+af')
-                    base_folder= self.alignment_folder,  #'Type of alignment folder'
-                    silent=True, #Remove all printout 
-                    filter_uniprot_acc = filter_uniprot_acc, # Give a set of Uniref structure to take for comparison test (between AF and Cath)  
-                  )
-
-    def _merge_datasets(self, **kwargs):
+    def _merge_data(self):
         importlib.reload(pepr2ds)
         from pepr2ds.dataset.tagibs import Dataset
-        merged = Dataset(self.dataset, self.settings.PEPRMINT_FOLDER)
+        merged = Dataset(self._df, self.settings.PEPRMINT_FOLDER)
 
-        merged.ibs      = pd.concat([x.ibs for x in kwargs.values()])
-        merged.nonibs   = pd.concat([x.nonibs for x in kwargs.values()])
-        merged.domainDf = pd.concat([x.domainDf for x in kwargs.values()])
+        # use list self.settings.active_superfamilies:
+        # use map self._superfamily_to_pepr2ds
 
-        domainLabel = "+".join([x for x in kwargs.keys()])
-        merged.domainLabel = domainLabel
+        merged.ibs      = pd.concat([self._superfamily_to_pepr2ds[x].ibs for x in self.settings.active_superfamilies])
+        merged.nonibs   = pd.concat([self._superfamily_to_pepr2ds[x].nonibs for x in self.settings.active_superfamilies])
+        merged.domainDf = pd.concat([self._superfamily_to_pepr2ds[x].domainDf for x in self.settings.active_superfamilies])
 
+        merged.domainLabel = "+".join(self.settings.active_superfamilies)
         return(merged)

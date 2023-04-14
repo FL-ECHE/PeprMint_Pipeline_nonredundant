@@ -146,18 +146,24 @@ class DatasetManager:
                                  EXCLUDE_SEQS,
                                  EXCLUDE_DOMAIN)
 
+        # TO DO: add preprocessing option here or leave it to the caller method?
         print("AlphaFold data fetched successfully; update dataset manager with build(recalculate=True)")
 
     def add_IBS_data(self):
         # Interfacial binding sites (IBS) tagging in the dataset
         # Originally on the "tools notebooks"; ported to ibs_tagging.py
-        self.IBS_tagger = IBSTagging(self.settings)
+        self.IBS_tagger = IBSTagging(self.settings, data_type="cath")
         self.IBS_tagger.run(self.DATASET)
+
+        # TO DO: repeat for alphafold entries
 
         # TO DO: do we need to build again!?
         # TO DO: figure out where is IBSTagging._merge_datasets() called
         #print("Updating dataset with IBS data")
         #self.build(recalculate=True)
+
+    def make_IBS_analysis_report(self):
+        self.IBS_tagger.make_analysis_report()
 
     """
     ### All methods below just encapsulate the steps in Notebook #2

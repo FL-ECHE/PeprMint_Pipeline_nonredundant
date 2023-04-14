@@ -189,7 +189,7 @@ class DataRetriever:
                 dom_list = dom_list[0:self.settings.xp_cath_limit]
 
                 # make sure the reference pdb (to "align on z" later) is kept
-                ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domName+"_pdb"]
+                ref_pdb = self.settings.config_file['PREPROCESSING']["ref_"+domName+"_pdb"]
                 if ref_pdb is not None and ref_pdb not in dom_list:
                     dom_list[0] = ref_pdb
 
@@ -210,6 +210,6 @@ class DataRetriever:
     def _copy_ref_pdb_files(self):
         # keep a copy of the raw pdb for the reference protein in each superfamily
         for domain in self.settings.active_superfamilies:
-            ref_pdb = self.settings.config_file['REORIENT_ALONG_Z']["ref_"+domain+"_pdb"]
+            ref_pdb = self.settings.config_file['PREPROCESSING']["ref_"+domain+"_pdb"]
             if ref_pdb is not None:
                 self._fetch_pdb_from_cath_dom(ref_pdb, self.settings.REF_FOLDER)

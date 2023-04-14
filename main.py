@@ -58,21 +58,21 @@ def main():
     #global_settings = Settings("/opt/cbu/my.config")  # different config file
 
     # notebook #1
-    data_retriever = DataRetriever(global_settings)
-    data_retriever.fetch()
+    #data_retriever = DataRetriever(global_settings)
+    #data_retriever.fetch()
 
     # superposition and reorientation of downloaded PDBs
     # NB! Might take too much time and space to run within a notebook
-    preprocess = Preprocessing(global_settings)
-    preprocess.run(database="cath")
+    #preprocess = Preprocessing(global_settings)
+    #preprocess.run(database="cath")
 
     # notebook #2
     dataset_manager = DatasetManager(global_settings)
-    dataset_manager.build()   # build dataset from fetched data
-    #dataset_manager.load_light_dataset()   # load dataset built on a previous run
+    #dataset_manager.build()   # build dataset from fetched data
+    dataset_manager.load_light_dataset()   # load dataset built on a previous run
 
     # notebook #3
-    dataset_manager.fetch_alphafold_data()
+    #dataset_manager.fetch_alphafold_data()
     """
     dataset_manager.fetch_alphafold_data(EXCLUDE_SEQS = ["Q54C71",    # optional
                                                          "O94827",
@@ -83,12 +83,13 @@ def main():
                                                          "Q06839"],
                                          EXCLUDE_DOMAIN = ["FYVE"])   # optional
     """
-    preprocess.run(database="alphafold")
-    dataset_manager.build(recalculate=True)
+    #preprocess.run(database="alphafold")
+    #dataset_manager.build(recalculate=True)
 
     # auxiliary tools notebook for interfacial binding sites (IBS) tagging
     # not needed if already computed earlier
-    #dataset_manager.add_IBS_data()
+    dataset_manager.add_IBS_data()
+    dataset_manager.make_IBS_analysis_report()
 
     # notebook #4
     #figure_gen = FigureGenerator(global_settings)

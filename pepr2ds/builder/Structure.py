@@ -649,8 +649,8 @@ class Structure(Attributes):
 
             #DATASET["data_type"] = "cathpdb"
             if len(self.ERRORS) > 0:
-                print(f"{len(self.ERRORS)} pdbs wasn't processed. Check 'ERRORS' list.")
-                print(f"in {self.PEPRMINT_FOLDER}/pdb_processing_errors.log")
+                print(f"Warning: total of PDBs not processed: {len(self.ERRORS)}")
+                print(f"         - check 'ERRORS' list in {self.PEPRMINT_FOLDER}/pdb_processing_errors.log")
                 with open(f"{self.PEPRMINT_FOLDER}/pdb_processing_errors.log",'w') as errorlog:
                     for pdb in self.ERRORS:
                         errorlog.write(pdb+'\n')

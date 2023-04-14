@@ -186,12 +186,82 @@ class Settings:
         self.config_file['GENERAL']['include_PLA'] = str(False)
         self.config_file['GENERAL']['include_ANNEXIN'] = str(False)
 
-
         self.config_file['EXPERIMENTAL_MODE'] = {}
         self.config_file['EXPERIMENTAL_MODE']['xp_mode'] = str(True)
         self.config_file['EXPERIMENTAL_MODE']['xp_mode_allow_parallel'] = "False"
         self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_cath_entries_per_domain'] = "3"
         self.config_file['EXPERIMENTAL_MODE']['xp_mode_max_alphafold_entries_per_domain'] = "3"
+
+        self.config_file['PREPROCESSING'] = {}
+        self.config_file['PREPROCESSING']['overwrite_original_pdbs'] = str(False)
+        self.config_file['PREPROCESSING']['keep_ssap_alignment_files'] = str(False)
+        self.config_file['PREPROCESSING']['ref_PH_pdb'] = "2da0A00"
+        self.config_file['PREPROCESSING']['ref_PH_res1'] = "19"
+        self.config_file['PREPROCESSING']['ref_PH_res2'] = "42"
+        self.config_file['PREPROCESSING']['ref_PH_res3'] = "50"
+        self.config_file['PREPROCESSING']['ref_C2_pdb'] = "1rsyA00"
+        self.config_file['PREPROCESSING']['ref_C2_res1'] = "169"
+        self.config_file['PREPROCESSING']['ref_C2_res2'] = "178"
+        self.config_file['PREPROCESSING']['ref_C2_res3'] = "237"
+        self.config_file['PREPROCESSING']['ref_C1_pdb'] = "1ptrA00"
+        self.config_file['PREPROCESSING']['ref_C1_res1'] = "243"
+        self.config_file['PREPROCESSING']['ref_C1_res2'] = "257"
+        self.config_file['PREPROCESSING']['ref_C1_res3'] = "237"
+        self.config_file['PREPROCESSING']['ref_PX_pdb'] = "1h6hA00"
+        self.config_file['PREPROCESSING']['ref_PX_res1'] = "33"
+        self.config_file['PREPROCESSING']['ref_PX_res2'] = "74"
+        self.config_file['PREPROCESSING']['ref_PX_res3'] = "100"
+        self.config_file['PREPROCESSING']['ref_FYVE_pdb'] = "1jocA02"
+        self.config_file['PREPROCESSING']['ref_FYVE_res1'] = "1373"
+        self.config_file['PREPROCESSING']['ref_FYVE_res2'] = "1392"
+        self.config_file['PREPROCESSING']['ref_FYVE_res3'] = "1382"
+        # TO DO: set a representative for the BAR domain
+        self.config_file.set('PREPROCESSING', 'ref_BAR_pdb') 
+        self.config_file.set('PREPROCESSING', 'ref_BAR_res1')  
+        self.config_file.set('PREPROCESSING', 'ref_BAR_res2')  
+        self.config_file.set('PREPROCESSING', 'ref_BAR_res3')
+        self.config_file['PREPROCESSING']['ref_ENTH_pdb'] = "1h0aA00"
+        self.config_file['PREPROCESSING']['ref_ENTH_res1'] = "17"
+        self.config_file['PREPROCESSING']['ref_ENTH_res2'] = "70"
+        self.config_file['PREPROCESSING']['ref_ENTH_res3'] = "116"
+        self.config_file['PREPROCESSING']['ref_SH2_pdb'] = "2oq1A03"
+        self.config_file['PREPROCESSING']['ref_SH2_res1'] = "180"
+        self.config_file['PREPROCESSING']['ref_SH2_res2'] = "209"
+        self.config_file['PREPROCESSING']['ref_SH2_res3'] = "243"
+        # TO DO: set a representative for the SEC14 domain
+        self.config_file.set('PREPROCESSING', 'ref_SEC14_pdb') 
+        self.config_file.set('PREPROCESSING', 'ref_SEC14_res1')  
+        self.config_file.set('PREPROCESSING', 'ref_SEC14_res2')  
+        self.config_file.set('PREPROCESSING', 'ref_SEC14_res3')
+        comment_on_alignment_START = "# alternative orientation for START: 567 470 509"
+        self.config_file.set('PREPROCESSING', comment_on_alignment_START)
+        self.config_file['PREPROCESSING']['ref_START_pdb'] = "2e3mA00"
+        self.config_file['PREPROCESSING']['ref_START_res1'] = "412"
+        self.config_file['PREPROCESSING']['ref_START_res2'] = "448"
+        self.config_file['PREPROCESSING']['ref_START_res3'] = "515"
+        self.config_file['PREPROCESSING']['ref_C2DIS_pdb'] = "1czsA00"
+        self.config_file['PREPROCESSING']['ref_C2DIS_res1'] = "23"
+        self.config_file['PREPROCESSING']['ref_C2DIS_res2'] = "76"
+        self.config_file['PREPROCESSING']['ref_C2DIS_res3'] = "45"
+        # TO DO: set a representative for the GLA domain
+        self.config_file.set('PREPROCESSING', 'ref_GLA_pdb') 
+        self.config_file.set('PREPROCESSING', 'ref_GLA_res1')  
+        self.config_file.set('PREPROCESSING', 'ref_GLA_res2')  
+        self.config_file.set('PREPROCESSING', 'ref_GLA_res3')
+        comment_on_alignment_PLD = "# alternative orientation (CAGE instead of OPM) for PLD: 53 41 99"
+        self.config_file.set('PREPROCESSING', comment_on_alignment_PLD)
+        self.config_file['PREPROCESSING']['ref_PLD_pdb'] = "3rlhA00"
+        self.config_file['PREPROCESSING']['ref_PLD_res1'] = "59"
+        self.config_file['PREPROCESSING']['ref_PLD_res2'] = "205"
+        self.config_file['PREPROCESSING']['ref_PLD_res3'] = "198"
+        self.config_file['PREPROCESSING']['ref_PLA_pdb'] = "1pocA00"
+        self.config_file['PREPROCESSING']['ref_PLA_res1'] = "7"
+        self.config_file['PREPROCESSING']['ref_PLA_res2'] = "92"
+        self.config_file['PREPROCESSING']['ref_PLA_res3'] = "76"
+        self.config_file['PREPROCESSING']['ref_ANNEXIN_pdb'] = "1a8aA01"
+        self.config_file['PREPROCESSING']['ref_ANNEXIN_res1'] = "25"
+        self.config_file['PREPROCESSING']['ref_ANNEXIN_res2'] = "68"
+        self.config_file['PREPROCESSING']['ref_ANNEXIN_res3'] = "77"
 
         self.config_file['CATH'] = {}
         self.config_file['CATH']['version'] = 'v4_2_0'
@@ -221,82 +291,8 @@ class Settings:
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_middle'] = "/protein/reviewed/"
         self.config_file['ALPHAFOLD_UTILS']['AF_interpro_url_suffix'] = "/?page_size=200"
 
-        self.config_file['REORIENT_ALONG_Z'] = {}
-        self.config_file['REORIENT_ALONG_Z']['ref_PH_pdb'] = "2da0A00"
-        self.config_file['REORIENT_ALONG_Z']['ref_PH_res1'] = "19"
-        self.config_file['REORIENT_ALONG_Z']['ref_PH_res2'] = "42"
-        self.config_file['REORIENT_ALONG_Z']['ref_PH_res3'] = "50"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2_pdb'] = "1rsyA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2_res1'] = "169"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2_res2'] = "178"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2_res3'] = "237"
-        self.config_file['REORIENT_ALONG_Z']['ref_C1_pdb'] = "1ptrA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_C1_res1'] = "243"
-        self.config_file['REORIENT_ALONG_Z']['ref_C1_res2'] = "257"
-        self.config_file['REORIENT_ALONG_Z']['ref_C1_res3'] = "237"
-        self.config_file['REORIENT_ALONG_Z']['ref_PX_pdb'] = "1h6hA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_PX_res1'] = "33"
-        self.config_file['REORIENT_ALONG_Z']['ref_PX_res2'] = "74"
-        self.config_file['REORIENT_ALONG_Z']['ref_PX_res3'] = "100"
-        self.config_file['REORIENT_ALONG_Z']['ref_FYVE_pdb'] = "1jocA02"
-        self.config_file['REORIENT_ALONG_Z']['ref_FYVE_res1'] = "1373"
-        self.config_file['REORIENT_ALONG_Z']['ref_FYVE_res2'] = "1392"
-        self.config_file['REORIENT_ALONG_Z']['ref_FYVE_res3'] = "1382"
-        # TO DO: set a representative for the BAR domain
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_BAR_pdb') 
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_BAR_res1')  
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_BAR_res2')  
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_BAR_res3')
-        self.config_file['REORIENT_ALONG_Z']['ref_ENTH_pdb'] = "1h0aA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_ENTH_res1'] = "17"
-        self.config_file['REORIENT_ALONG_Z']['ref_ENTH_res2'] = "70"
-        self.config_file['REORIENT_ALONG_Z']['ref_ENTH_res3'] = "116"
-        self.config_file['REORIENT_ALONG_Z']['ref_SH2_pdb'] = "2oq1A03"
-        self.config_file['REORIENT_ALONG_Z']['ref_SH2_res1'] = "180"
-        self.config_file['REORIENT_ALONG_Z']['ref_SH2_res2'] = "209"
-        self.config_file['REORIENT_ALONG_Z']['ref_SH2_res3'] = "243"
-        # TO DO: set a representative for the SEC14 domain
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_SEC14_pdb') 
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_SEC14_res1')  
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_SEC14_res2')  
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_SEC14_res3')
-        comment_on_alignment_START = "# alternative orientation for START: 567 470 509"
-        self.config_file.set('REORIENT_ALONG_Z', comment_on_alignment_START)
-        self.config_file['REORIENT_ALONG_Z']['ref_START_pdb'] = "2e3mA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_START_res1'] = "412"
-        self.config_file['REORIENT_ALONG_Z']['ref_START_res2'] = "448"
-        self.config_file['REORIENT_ALONG_Z']['ref_START_res3'] = "515"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2DIS_pdb'] = "1czsA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2DIS_res1'] = "23"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2DIS_res2'] = "76"
-        self.config_file['REORIENT_ALONG_Z']['ref_C2DIS_res3'] = "45"
-        # TO DO: set a representative for the GLA domain
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_GLA_pdb') 
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_GLA_res1')  
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_GLA_res2')  
-        self.config_file.set('REORIENT_ALONG_Z', 'ref_GLA_res3')
-        comment_on_alignment_PLD = "# alternative orientation (CAGE instead of OPM) for PLD: 53 41 99"
-        self.config_file.set('REORIENT_ALONG_Z', comment_on_alignment_PLD)
-        self.config_file['REORIENT_ALONG_Z']['ref_PLD_pdb'] = "3rlhA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLD_res1'] = "59"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLD_res2'] = "205"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLD_res3'] = "198"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLA_pdb'] = "1pocA00"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLA_res1'] = "7"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLA_res2'] = "92"
-        self.config_file['REORIENT_ALONG_Z']['ref_PLA_res3'] = "76"
-        self.config_file['REORIENT_ALONG_Z']['ref_ANNEXIN_pdb'] = "1a8aA01"
-        self.config_file['REORIENT_ALONG_Z']['ref_ANNEXIN_res1'] = "25"
-        self.config_file['REORIENT_ALONG_Z']['ref_ANNEXIN_res2'] = "68"
-        self.config_file['REORIENT_ALONG_Z']['ref_ANNEXIN_res3'] = "77"
-
         self.config_file['IBS_TAGGING'] = {}
         self.config_file['IBS_TAGGING']['comparison_mode'] = str(False)
-        
-        comment_on_data_type = "# data_type can be cath, alphafold, or cath+af (NB! these are pepr2ds settings)"
-        self.config_file.set('IBS_TAGGING', comment_on_data_type)
-        self.config_file['IBS_TAGGING']['data_type'] = "cath"
-
         self.config_file['IBS_TAGGING']['cluster_level'] = "S100"
         self.config_file['IBS_TAGGING']['uniref_level'] = "uniref100"
         self.config_file['IBS_TAGGING']['z_axis_level'] = "0"
@@ -383,6 +379,9 @@ class Settings:
         self.PROSITEFOLDER = f"{self.PEPRMINT_FOLDER}/databases/prosite/"
         self.UNIPROTFOLDER = f"{self.PEPRMINT_FOLDER}/databases/uniprot/"
         self.FIGURESFOLDER = f"{self.PEPRMINT_FOLDER}/figures/"
+
+        # not kept when "overwrite_original_pdbs" (under preprocessing in the config file) is true
+        self.ALIGNED_SUBDIR = "zaligned"
 
         self.SETUP["PEPRMINT_FOLDER"] = self.PEPRMINT_FOLDER
         self.SETUP["WORKDIR"] = self.WORKDIR
