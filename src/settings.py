@@ -380,8 +380,11 @@ class Settings:
         self.UNIPROTFOLDER = f"{self.PEPRMINT_FOLDER}/databases/uniprot/"
         self.FIGURESFOLDER = f"{self.PEPRMINT_FOLDER}/figures/"
 
-        # not kept when "overwrite_original_pdbs" (under preprocessing in the config file) is true
+        # used by default; ignored when "overwrite_original_pdbs" (under preprocessing in the config file) is true
         self.ALIGNED_SUBDIR = "zaligned"
+
+        # used by default; ignored when tagging IBS on CATH or AF data separately
+        self.ALIGNED_CATH_AND_AF = "merged_aligned_cath_and_af"
 
         self.SETUP["PEPRMINT_FOLDER"] = self.PEPRMINT_FOLDER
         self.SETUP["WORKDIR"] = self.WORKDIR

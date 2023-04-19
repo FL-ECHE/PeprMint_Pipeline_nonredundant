@@ -51,6 +51,9 @@ import MDAnalysis as mda
 
 from tqdm import tnrange, tqdm
 
+import os
+import shutil
+from pathlib import Path
 import urllib
 import glob
 from urllib.error import HTTPError
@@ -74,21 +77,6 @@ class IBSTagging:
             print(f"> Warning: did not recognize option '{data_type}' to IBSTagging constructor")
             print(f"           - defaulting to 'cath+af'")
 
-        # TO DO: I'm not satisfied with how we handle these possibilities; review options after completing IBSTagging with AF data
-        self.coordinates_folder = self.settings.ALIGNED_SUBDIR
-        if self.settings.config_file.getboolean('PREPROCESSING', 'overwrite_original_pdbs'):
-            print(f"> Warning: preprocessing option 'overwrite_original_pdbs' is on in the config file")
-            if data_type == "cath":
-                print(f"           - assuming aligned files are under 'raw'")
-                self.coordinates_folder = 'raw'
-            elif data_type == "alphafold":
-                print(f"           - assuming aligned files are under 'extracted'")
-                self.coordinates_folder = 'extracted'
-            else:
-                # TO DO: should both cath/domains/* and alphafold/* be copied to databases/aligned_cath-AF
-                print(f"           conflicts with IBSTagging constructor argument data_type = {data_type}!")
-                print(f"           - assuming aligned files are under {self.coordinates_folder}")
-
         self.cluster_level = self.settings.config_file['IBS_TAGGING']['cluster_level']
         self.uniref_level = self.settings.config_file['IBS_TAGGING']['uniref_level']
         self.z_axis_level = self.settings.config_file.getint(
@@ -96,14 +84,12 @@ class IBSTagging:
         self.comparison_mode = self.settings.config_file.getboolean(
             'IBS_TAGGING', 'comparison_mode')
 
-        # TO DO: needs revision! Unless the other "tools notebook" has something new, this would make tagibs.py get a wrong path on line 251
-        self.alignment_folder = 'cath' if self.data_type == "cath" else 'aligned_cath-AF'
-
         self.pepr2ds_dataset = None          # the resulting Dataset (from pepr2ds.dataset.tagibs) instance, after merging
         self._df = None                      # the input pandas dataframe
         self._superfamily_to_pepr2ds = {}    # temporary map (pre-merging) Dataset instances from each superfamily
 
         self._libs_setup()
+        self._directories_setup()
 
     def _libs_setup(self):
         # IPython
@@ -122,6 +108,50 @@ class IBSTagging:
 
         # Seaborn
         sns.set_style("darkgrid")
+
+    def _directories_setup(self):
+        running_in_overwrite_mode = self.settings.config_file.getboolean('PREPROCESSING', 'overwrite_original_pdbs')
+
+        # pepr2ds.Dataset.tag_ibs() needs either 'cath' (and it appends 'domains/' to the path) or the parent folder containing superfamily folders
+        self.base_folder = self.data_type if self.data_type in ["cath", "alphafold"] else self.settings.ALIGNED_CATH_AND_AF
+
+        # pepr2ds.Dataset.tag_ibs() will look for (superimposed, reoriented) pdbs in a subfolder with this name
+        self.coordinates_folder = self.settings.ALIGNED_SUBDIR
+        if running_in_overwrite_mode:
+            print(f"> Warning: preprocessing option 'overwrite_original_pdbs' is active in the config file")
+            if self.data_type == "cath":
+                print(f"           - assuming aligned files are under 'raw'")
+                self.coordinates_folder = 'raw'
+            elif self.data_type == "alphafold":
+                print(f"           - assuming aligned files are under 'extracted'")
+                self.coordinates_folder = 'extracted'
+            else:   # cath+af
+                print(f"           - assuming aligned files are under 'cath/domains/raw' and 'alphafold/extracted'")
+                print(f"           - will now copy them to {self.settings.ALIGNED_CATH_AND_AF}/.../{self.settings.ALIGNED_SUBDIR}")
+
+        # pepr2ds.Dataset.tag_ibs() needs an extra directory containing both CATH and AF oriented files
+        if self.data_type == "cath+af":
+            parent_folder = f"{self.settings.PEPRMINT_FOLDER}/databases/{self.settings.ALIGNED_CATH_AND_AF}/"
+            if os.path.exists(parent_folder):
+                shutil.rmtree(parent_folder)
+            for superfamily in self.settings.active_superfamilies:
+                new_folder = parent_folder + superfamily + "/" + self.settings.ALIGNED_SUBDIR
+
+                src_cath = self.settings.CATHFOLDER + "domains/" + superfamily + "/"
+                src_af = self.settings.ALPHAFOLDFOLDER + superfamily + "/"
+                if running_in_overwrite_mode:
+                    src_cath = src_cath + "raw"
+                    src_af = src_af + "extracted"
+                else:
+                    src_cath = src_cath + self.settings.ALIGNED_SUBDIR
+                    src_af = src_af + self.settings.ALIGNED_SUBDIR
+
+                # creates all necessary intermediate nodes before a leaf (:
+                shutil.copytree(src=src_cath, dst=new_folder)
+
+                # param dirs_exist_ok did not exist before python3.8, so we need to copy the second folder files one by one
+                for f in [str(x) for x in Path(src_af).glob("*.pdb")]:
+                    shutil.copy(src=f, dst=new_folder)
 
     def run(self, df: pd.DataFrame):
         self._df = df
@@ -221,7 +251,7 @@ class IBSTagging:
                 extendCoilOnly = False,                            # extend coil only
                 coordinates_folder_name = self.coordinates_folder,
                 data_type = self.data_type,
-                base_folder= self.alignment_folder,
+                base_folder= self.base_folder,
                 silent=True,
                 filter_uniprot_acc = filter_uniprot_acc)           # Give a set of Uniref structure to take for comparison test (between AF and Cath)
 

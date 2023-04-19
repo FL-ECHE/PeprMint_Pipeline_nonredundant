@@ -377,7 +377,7 @@ class Dataset():
             raise ValueError('CathCluster given not in ["S35","S60","S95","S100"]')
 
         if Uniref not in ["uniref50", "uniref90", "uniref100"]:
-            raise ValueError('CathCluster given not in ["uniref50","uniref90","uniref100"]')
+            raise ValueError('Uniref given not in ["uniref50","uniref90","uniref100"]')
 
         if withAlignment:
             df = df[~df.alignment_position.isnull()]
