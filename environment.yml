@@ -8,6 +8,8 @@ channels:
 dependencies:
 - python=3.7
 - pytest
+- main::boost
+- main::libboost
 - seaborn
 - pandas
 - biopandas

@@ -229,9 +229,10 @@ class IBSTagging:
             print(f"  Warning: no reference protein for '{domain}' defined on .config file - skipping IBS tagging")
             return
 
+        self._superfamily_to_pepr2ds[superfamily] = Dataset(self._df, self.settings.PEPRMINT_FOLDER)
+        
         filter_uniprot_acc = self._get_uniprot_in_common(superfamily) if self.comparison_mode else None
 
-        self._superfamily_to_pepr2ds[superfamily] = Dataset(self._df, self.settings.PEPRMINT_FOLDER)
         self._superfamily_to_pepr2ds[superfamily].tag_ibs(
                 self._df, 
                 domain = superfamily,
@@ -256,15 +257,18 @@ class IBSTagging:
                 filter_uniprot_acc = filter_uniprot_acc)           # Give a set of Uniref structure to take for comparison test (between AF and Cath)
 
     # Set of Uniref structures to take for comparison test (between AF and Cath)
-    def _get_uniprot_in_common(self, domain):
-        cathcluster_uniprot = (self._df.query("domain == @domain and data_type == 'cathpdb'")
-                               .uniprot_acc
-                               .unique())
-        AFcluster_uniprot = (self._df.query("domain == @domain and data_type == 'alphafold'")
-                             .uniprot_acc
-                             .unique())
+    def _get_uniprot_in_common(self, domain, unique_per_cluster=True):
+        cath_data = self._df.query("domain == @domain and data_type == 'cathpdb'")
+        af_data = self._df.query("domain == @domain and data_type == 'alphafold'")
 
-        return list(set(AFcluster_uniprot).intersection(cathcluster_uniprot))
+        if unique_per_cluster:
+            cath_data = self._superfamily_to_pepr2ds[domain].selectUniquePerCluster(cath_data, self.cluster_level, self.uniref_level)
+            af_data = self._superfamily_to_pepr2ds[domain].selectUniquePerCluster(af_data, self.cluster_level, self.uniref_level)
+
+        cathcluster_uniprot = cath_data.uniprot_acc.unique()
+        afcluster_uniprot = af_data.uniprot_acc.unique()
+
+        return list(set(afcluster_uniprot).intersection(cathcluster_uniprot))
 
     def _merge_data(self):
         importlib.reload(pepr2ds)
@@ -280,3 +284,12 @@ class IBSTagging:
 
         merged.domainLabel = "+".join(self.settings.active_superfamilies)
         return(merged)
+
+    def _test_num_protrusions(self):
+        target = self.pepr2ds_dataset.domainDf.groupby('uniprot_acc')
+        num_protrusions = target.apply(lambda x: self.__query_protrusions(x))
+        return num_protrusions
+
+    def __query_protrusions(self, group):
+        seeking = "is_hydrophobic_protrusion == True and atom_name == 'CB'"
+        return len(group.query(seeking))
