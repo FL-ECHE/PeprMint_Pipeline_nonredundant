@@ -40,6 +40,7 @@ import pandas as pd
 import numpy as np
 import os
 import importlib
+import pickle
 
 from tqdm import trange, tqdm
 from typing import Optional
@@ -51,6 +52,8 @@ from src.notebook_handle import NotebookHandle
 from src.alphafold_utils import AlphaFoldUtils
 from src.ibs_tagging import IBSTagging
 
+# module for object in Notebook #4
+from src.figure_generator import FigureGenerator
 
 class DatasetManager:
 
@@ -60,13 +63,16 @@ class DatasetManager:
         if self.settings.XP_MODE:
             self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_XP"
             self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_XP"
+            self._IBS_DATASET_FILENAME = "TAGGED_MERGED_DATASET_XP"
         else:
             self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
             self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
+            self._IBS_DATASET_FILENAME = "TAGGED_MERGED_DATASET"
 
         self.DATASET = None
         self.alphafold_utils = None
         self.IBS_tagger = None
+        self.figure_generator = None
 
         self.RECALCULATION = self.settings.config_file.getboolean(
             'DATASET_MANAGER', 'recalculate')
@@ -154,17 +160,40 @@ class DatasetManager:
         # Originally on the "tools notebooks"; ported to ibs_tagging.py
         self.IBS_tagger = IBSTagging(self.settings, data_type=db)
         self.IBS_tagger.run(self.DATASET)
-
-        # TO DO: do we need to build again!?
-        # TO DO: figure out if the merged Dataset object in IBSTagging should be reflected here
-        #print("Updating dataset with IBS data")
-        #self.build(recalculate=True)
-
-    def make_IBS_analysis_report(self):
         self.IBS_tagger.make_analysis_report()
 
-    def get_protusion_count_after_IBS(self):
-        return self.IBS_tagger._test_num_protrusions()
+        # TO DO: do we need to build again!? Figure out if the merged Dataset object in IBSTagging should be reflected here
+        #print("Updating dataset with IBS data")
+        #self.build(recalculate=False)
+
+        # serialize tagger object e.g. to generate figures later on
+        path_to_merged_file = self.settings.WORKDIR + self._IBS_DATASET_FILENAME + ".pkl"
+        with open(path_to_merged_file, "wb") as outfile:
+            pickle.dump(self.IBS_tagger, outfile)
+
+    def load_IBS_data(self) -> bool:
+        path_to_merged_file = self.settings.WORKDIR + self._IBS_DATASET_FILENAME + ".pkl"
+        if not os.path.isfile(path_to_merged_file):
+            print("Could not find the tagged dataset file ({0})".format(path_to_merged_file))
+            print("Use add_IBS_data() from DatasetManager to compute it")
+            return False
+        else:
+            with open(path_to_merged_file, "rb") as infile:
+                self.IBS_tagger = pickle.load(infile)
+            print("Tagged dataset loaded successfully")
+            return True
+
+    def get_figure_generator_after_IBS(self):
+        if self.IBS_tagger is None:
+            print("Error: (IBS) tagged dataset not computed/loaded")
+        else:
+            return FigureGenerator(self.settings, self.IBS_tagger.pepr2ds_dataset)
+
+    def get_protusion_count_after_IBS(self, ibs_only=False):
+        if self.IBS_tagger is None:
+            print("Error: (IBS) tagged dataset not computed/loaded")
+        else:
+            return self.IBS_tagger._test_num_protrusions(ibs_only=ibs_only)
 
     """
     ### All methods below just encapsulate the steps in Notebook #2

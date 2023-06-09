@@ -63,13 +63,13 @@ def main():
 
     # superposition and reorientation of downloaded PDBs
     # NB! Might take too much time and space to run within a notebook
-    #preprocess = Preprocessing(global_settings)
+    preprocess = Preprocessing(global_settings)
     #preprocess.run(database="cath")
 
     # notebook #2
     dataset_manager = DatasetManager(global_settings)
     #dataset_manager.build()   # build dataset from fetched data
-    dataset_manager.load_light_dataset()   # load dataset built on a previous run
+    dataset_manager.load_light_dataset()  # load dataset built on a previous run
 
     # notebook #3
     #dataset_manager.fetch_alphafold_data()
@@ -81,18 +81,17 @@ def main():
                                                          "P39960",
                                                          "Q62077",
                                                          "Q06839"],
-                                         EXCLUDE_DOMAIN = ["FYVE"])   # optional
+                                         EXCLUDE_DOMAIN = ["PLA"])   # optional
     """
     #preprocess.run(database="alphafold")
     #dataset_manager.build(recalculate=True)
 
     # auxiliary tools notebook for interfacial binding sites (IBS) tagging
-    # not needed if already computed earlier
-    dataset_manager.add_IBS_data()
-    dataset_manager.make_IBS_analysis_report()
+    #dataset_manager.add_IBS_data()   # tag and save merged dataset
+    dataset_manager.load_IBS_data()   # load from a previous run
 
     # notebook #4
-    #figure_gen = FigureGenerator(global_settings)
+    figure_gen = dataset_manager.get_figure_generator_after_IBS()
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

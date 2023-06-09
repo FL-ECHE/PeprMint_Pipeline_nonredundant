@@ -75,13 +75,15 @@ class Dataset():
 
         self.domainDf = pd.read_pickle(f"{path}/{name}.pkl")
         self.domainLabel = "+".join(self.domainDf.domain.unique())
-
+        #self.ibs      = pd.read_pickle(f"{path}/{name}_ibs.pkl")
+        #self.nonibs   = pd.read_pickle(f"{path}/{name}_nonibs.pkl")
 
     def save_dataset(self, name, path=None):
         if path == None:
             path = f"{self.PEPRMINT_FOLDER}/dataset"
         self.domainDf.to_pickle(f"{path}/{name}.pkl")
-
+        #self.ibs.to_pickle(f"{path}/{name}_ibs.pkl")
+        #self.nonibs.to_pickle(f"{path}/{name}_nonibs.pkl")
 
 
     #############

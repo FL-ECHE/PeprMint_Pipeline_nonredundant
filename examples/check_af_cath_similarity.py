@@ -63,7 +63,6 @@ class ExampleComparingAFCATH():
 
     def main(self):
         self._setup()
-        #self._make_reports()
         self._compare()
 
     def _setup(self):
@@ -77,11 +76,9 @@ class ExampleComparingAFCATH():
         self.cath_manager.add_IBS_data(db="cath")
         self.af_manager.add_IBS_data(db="alphafold")
 
-    def _make_reports(self):
-        self.cath_manager.make_IBS_analysis_report()
-        self.af_manager.make_IBS_analysis_report()
-
     def _compare(self):
+        #protrusions_per_structure_CATH = self.cath_manager.get_protusion_count_after_IBS(ibs_only=True)
+        #protrusions_per_structure_AF = self.af_manager.get_protusion_count_after_IBS(ibs_only=True)
         protrusions_per_structure_CATH = self.cath_manager.get_protusion_count_after_IBS()
         protrusions_per_structure_AF = self.af_manager.get_protusion_count_after_IBS()
         uniprot_in_common = list(set(protrusions_per_structure_CATH.index).intersection(protrusions_per_structure_AF.index))
@@ -127,7 +124,7 @@ class ExampleComparingAFCATH():
                        ALTERNATIVE = "two-sided",    # 'two-sided', 'less' or 'greater'
                        pairwised = False):
         
-        print("----------------------------------------")
+        print("\n----------------------------------------")
         self._printmd("**STATISTICAL TEST BETWEEN TWO SAMPLES**")
         
         self._printmd(f" - ALTERNATIVE HYPOTHESIS = {ALTERNATIVE}")

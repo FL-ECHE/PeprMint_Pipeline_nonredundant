@@ -57,14 +57,14 @@ import glob
 from urllib.error import HTTPError
 
 from src.settings import Settings
-from src.dataset_manager import DatasetManager
 from src.notebook_handle import NotebookHandle
+from pepr2ds.dataset.tagibs import Dataset
 
 class FigureGenerator:
 
-    def __init__(self, global_settings: Settings):
+    def __init__(self, global_settings: Settings, tagged_dataset: Dataset):
         self.settings = global_settings
-        self.dataset = None
+        self.pepr2ds_dataset = tagged_dataset
 
         self.RECALCULATE = self.settings.config_file.getboolean(
             'FIGURE_GENERATION', 'recalculate')
@@ -75,7 +75,7 @@ class FigureGenerator:
         
         self._libs_setup()
 
-        # TO DO: continue from here when done with tools/tag_IBS_domains
+        # TO DO: continue from here
         # - Load/recalculate data
         # - Preparation/cleaning
         # - Palette and conf

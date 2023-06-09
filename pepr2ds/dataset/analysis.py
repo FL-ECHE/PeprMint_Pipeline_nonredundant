@@ -1200,7 +1200,9 @@ class Analysis():
                 test.rename("hydrophobic_protrusions", inplace=True)
 
 
-            test = test/test.sum(level=0)
+            # NB! FutureWarning: Using the level keyword in DataFrame and Series aggregations is deprecated and will be removed in a future version. Use groupby instead. df.sum(level=1) should use df.groupby(level=1).sum().
+            #test = test/test.sum(level=0)
+            test = test/(test.groupby(level=0).sum())
             dataGraph = test.to_frame()
             # dataGraph = dfGraph.groupby("Localisation").apply(
             #     lambda x: (x.hydrophobic_protrusions.value_counts() \
@@ -1733,7 +1735,9 @@ class Analysis():
                                                                                                              exclude_protrusion,
                                                                                                              ))
 
-                    tableCount = r.sum(axis=0, level=[1, 2])
+                    # NB! FutureWarning: Using the level keyword in DataFrame and Series aggregations is deprecated and will be removed in a future version. Use groupby instead. df.sum(level=1) should use df.groupby(level=1).sum().
+                    #tableCount = r.sum(axis=0, level=[1, 2])
+                    tableCount = r.groupby(axis=0, level=[1, 2]).sum()
 
                     index_l1 = tableCount.index.get_level_values(1).unique().tolist()
 

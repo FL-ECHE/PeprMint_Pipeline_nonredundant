@@ -177,6 +177,7 @@ class IBSTagging:
         else:
             print("Error: cannot make analysis report without completing IBSTagging.run() successfully")
 
+    
     """
     ### All methods below just encapsulate the steps in the original notebook
     """
@@ -275,18 +276,22 @@ class IBSTagging:
         from pepr2ds.dataset.tagibs import Dataset
         merged = Dataset(self._df, self.settings.PEPRMINT_FOLDER)
 
-        # use list self.settings.active_superfamilies:
-        # use map self._superfamily_to_pepr2ds
-
         merged.ibs      = pd.concat([self._superfamily_to_pepr2ds[x].ibs for x in self.settings.active_superfamilies])
         merged.nonibs   = pd.concat([self._superfamily_to_pepr2ds[x].nonibs for x in self.settings.active_superfamilies])
         merged.domainDf = pd.concat([self._superfamily_to_pepr2ds[x].domainDf for x in self.settings.active_superfamilies])
 
         merged.domainLabel = "+".join(self.settings.active_superfamilies)
+
+        # Thibault: "Just in case..."
+        merged.domainDf.reset_index(drop=True, inplace=True)
         return(merged)
 
-    def _test_num_protrusions(self):
-        target = self.pepr2ds_dataset.domainDf.groupby('uniprot_acc')
+    def _test_num_protrusions(self, ibs_only=False):
+        target = self.pepr2ds_dataset.domainDf
+        if ibs_only:
+            target = target.query("IBS == True")
+        target = target.groupby('uniprot_acc')
+
         num_protrusions = target.apply(lambda x: self.__query_protrusions(x))
         return num_protrusions
 
