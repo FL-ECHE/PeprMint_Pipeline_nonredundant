@@ -92,6 +92,8 @@ def main():
 
     # notebook #4
     figure_gen = dataset_manager.get_figure_generator_after_IBS()
+    figure_gen.make_figure_composition_of_exposed_IBS()
+    figure_gen.make_figure_protrusions()
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

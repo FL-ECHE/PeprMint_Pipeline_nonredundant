@@ -298,7 +298,6 @@ class Settings:
         self.config_file['IBS_TAGGING']['z_axis_level'] = "0"
 
         self.config_file['FIGURE_GENERATION'] = {}
-        self.config_file['FIGURE_GENERATION']['recalculate'] = str(False)
         
         # not recommended setting include_alphafold_from_the_beginning to true because it is added later
         self.config_file['FIGURE_GENERATION']['include_alphafold_from_the_beginning'] = str(False)

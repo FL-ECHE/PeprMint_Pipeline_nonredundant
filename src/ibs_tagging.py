@@ -169,10 +169,6 @@ class IBSTagging:
 
     def make_analysis_report(self):
         if self.pepr2ds_dataset is not None:
-            # TO DO: these seem like bug fixes (from Notebook #4)... maybe should be elsewhere
-            self.pepr2ds_dataset.domainDf.residue_name = self.pepr2ds_dataset.domainDf.residue_name.astype(str)
-            self.pepr2ds_dataset.domainDf.domain = self.pepr2ds_dataset.domainDf.domain.astype(str)
-
             self.pepr2ds_dataset.analysis.report(displayHTML=False)
         else:
             print("Error: cannot make analysis report without completing IBSTagging.run() successfully")
@@ -284,6 +280,10 @@ class IBSTagging:
 
         # Thibault: "Just in case..."
         merged.domainDf.reset_index(drop=True, inplace=True)
+        # Thibault: "clean the resname type"
+        merged.domainDf.residue_name = merged.domainDf.residue_name.astype(str)
+        merged.domainDf.domain = merged.domainDf.domain.astype(str)
+        
         return(merged)
 
     def _test_num_protrusions(self, ibs_only=False):
