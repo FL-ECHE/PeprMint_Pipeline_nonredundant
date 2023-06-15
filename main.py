@@ -63,7 +63,7 @@ def main():
 
     # superposition and reorientation of downloaded PDBs
     # NB! Might take too much time and space to run within a notebook
-    preprocess = Preprocessing(global_settings)
+    #preprocess = Preprocessing(global_settings)
     #preprocess.run(database="cath")
 
     # notebook #2
@@ -87,13 +87,18 @@ def main():
     #dataset_manager.build(recalculate=True)
 
     # auxiliary tools notebook for interfacial binding sites (IBS) tagging
-    #dataset_manager.add_IBS_data()   # tag and save merged dataset
-    dataset_manager.load_IBS_data()   # load from a previous run
+    #dataset_manager.add_IBS_data(db="cath+af")   # tag and save merged dataset
+    dataset_manager.load_IBS_data(db="cath+af")   # load from a previous run
 
     # notebook #4
     figure_gen = dataset_manager.get_figure_generator_after_IBS()
-    figure_gen.make_figure_composition_of_exposed_IBS()
-    figure_gen.make_figure_protrusions()
+    #figure_gen.make_figure_composition_of_exposed_IBS()
+    #figure_gen.make_figure_protrusions()
+    #figure_gen.make_figure_composition_for_proteins_with_HP_at_IBS()
+    #figure_gen.make_figure_neighbourhood_composition()
+    #figure_gen.make_figure_number_of_structures_w_and_wo_HP_at_IBS()
+    #figure_gen.make_figure_composition_for_proteins_without_HP_at_IBS()
+    #figure_gen.make_figure_superfamily_decomposition_exposed_env_HP()
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

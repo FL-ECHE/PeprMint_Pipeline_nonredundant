@@ -47,6 +47,7 @@ import seaborn as sns
 
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.patches as mpatches
 from scipy.spatial import ConvexHull
 import MDAnalysis as mda
 from decimal import Decimal
@@ -74,6 +75,15 @@ class FigureGenerator:
 
         self.FILESUFFIX = "-AF" if self.INCLUDE_AF_FROM_START else ""
         self._silent_eq_test = False
+
+        # Warning
+        if self.settings.use_ENTH:
+            print("\n***")
+            print("\n*** Warning: as of 2022, the authors did not include")
+            print("\n***          entries in the ENTH superfamilly in the")
+            print("\n***          figures; consider removing them before")
+            print("\n***          proceeding with analysis/figure generation")
+            print("\n***")
 
         self._libs_setup()
         self._palette_setup()
@@ -168,6 +178,8 @@ class FigureGenerator:
 
         # backup info
         self._backup_all = self.pepr2ds.domainDf.copy()
+
+        self._data_type = list(self.pepr2ds.domainDf.data_type.unique())
 
         number_of_HP_per_pdbs = self.pepr2ds.domainDf.query('IBS == True and atom_name == "CB"').groupby("cathpdb").progress_apply(lambda group: self._count_hydr_protr_perpdb(group))
         nohydrprotrpdbs = list(number_of_HP_per_pdbs[number_of_HP_per_pdbs==0].index)
@@ -358,7 +370,7 @@ class FigureGenerator:
 
     #############################################################################
     # Figure 2 in the 2022 paper: composition of the exposed IBS for all proteins
-    def make_figure_composition_of_exposed_IBS(self):
+    def make_figure_composition_of_exposed_IBS(self, fig_filename="Fig 2"):
         dataCathIBS = self.pepr2ds.domainDf.query("IBS == True and exposed == True").drop_duplicates(['residue_name', 'residue_number', 'cathpdb']).residue_name.value_counts(normalize=True)*100
         dataCathnoIBS = self.pepr2ds.domainDf.query("IBS == False and exposed == True").drop_duplicates(['residue_name', 'residue_number', 'cathpdb']).residue_name.value_counts(normalize=True)*100
 
@@ -384,7 +396,7 @@ class FigureGenerator:
         _= ax1.text(-0.1,1.02, "C",transform=ax1.transAxes, fontsize=20)
         _= ax3.text(-0.1,1.02, "D",transform=ax3.transAxes, fontsize=20)
 
-        self._save_fig("Fig 2",format=self.FORMAT)
+        self._save_fig(fig_filename,format=self.FORMAT)
 
     def _composition_of_exposed_IBS(self, data, ax=None, PERTYPE=False, putLegend=True, xlabel="Composition (%)"):
         graph_data = data.to_frame()
@@ -466,7 +478,7 @@ class FigureGenerator:
 
     ####################################################################################
     # Figure 3 in the 2022 paper: protrusions and hydrophobic protrusions in the dataset
-    def make_figure_protrusions(self, show_equality_test=True, show_percentage_without_HP=True):
+    def make_figure_protrusions(self, fig_filename="Fig 3", show_equality_test=True, show_percentage_without_HP=True):
         count_protr_whole = self.pepr2ds.domainDf.query('atom_name == "CB"').groupby('cathpdb').progress_apply(lambda group: self._count_protrusion_per_pdb(group)).to_frame("count") 
         count_hydr_protr_whole = self.pepr2ds.domainDf.query('atom_name == "CB"').groupby('cathpdb').progress_apply(lambda group: self._count_hydr_protrusion_per_pdb(group)).to_frame("count") 
         # count_polar_protr_whole = self.pepr2ds.domainDf.query('atom_name == "CB"').groupby('cathpdb').progress_apply(lambda group: self._count_polar_protrusion_per_pdb(group)).to_frame("count") 
@@ -641,7 +653,7 @@ class FigureGenerator:
         _ = axs[1].text(-0.1,1.02, "B", transform=axs[1].transAxes, fontsize=20)
         _ = axs[2].text(-0.1,1.02, "C", transform=axs[2].transAxes, fontsize=20)
 
-        self._save_fig(f"Fig 3{self.FILESUFFIX}", transparent=False, format=self.FORMAT)
+        self._save_fig(fig_filename, transparent=False, format=self.FORMAT)
 
         if show_equality_test:
             pop1 = ratio_graph_data.query("Surface == 'IBS'")["count"]
@@ -740,44 +752,719 @@ class FigureGenerator:
 
     ######################################################################################
     # Figure 4 in the 2022 paper: composition of the IBS/nonIBS for protein with HP at IBS
-    def make_figure_composition_for_proteins_with_HP_at_IBS(self):
-        pass
+    def make_figure_composition_for_proteins_with_HP_at_IBS(self, fig_filename="Fig 4"):
+        sns.set_style("whitegrid") #Seaborn style
+        sns.set(font_scale=1.2, style="whitegrid")
 
+        self.pepr2ds.domainDf = self._backup_prot_HPIBS.copy()
+        plt.rcParams["font.family"] = "DejaVu Sans"
+
+        fig = plt.figure(figsize=(15,5))
+        gs = gridspec.GridSpec(ncols=2, nrows=2, width_ratios=[1,2], height_ratios=[8,3])
+        gs.update(hspace=0.05)
+        ax0 = plt.subplot(gs[0,0])
+        ax1 = plt.subplot(gs[0,1])
+        ax2 = plt.subplot(gs[1,0])
+        ax3 = plt.subplot(gs[1,1])
+
+        ### Protrusion Secondary Structure
+        tc_sec_struc = self.pepr2ds.domainDf.query("protrusion == True and type in ['Hydrophobic,H-non-aromatic', 'Hydrophobic,H-aromatic']").groupby("IBS").sec_struc.value_counts(normalize=True).to_frame('Percentage').reset_index()
+        tc_sec_struc["Surface"] = tc_sec_struc["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
+        labelsdict = {"C":"Loop", "E":"β-strand","H":"α-helix"}
+
+        print(tc_sec_struc)
+        try: #Just pandas update change in output index.
+           tc_sec_struc["Secondary Structure"] = tc_sec_struc["sec_struc"].apply(lambda x: labelsdict[x])
+        except: 
+           tc_sec_struc["Secondary Structure"] = tc_sec_struc["level_1"].apply(lambda x: labelsdict[x])
+
+        self.pepr2ds.domainDf["Secondary Structure"] = self.pepr2ds.domainDf["sec_struc"].apply(lambda x: labelsdict[x])
+        tc_sec_struc["Percentage"] = tc_sec_struc["Percentage"]*100
+
+        graph = sns.barplot(data=tc_sec_struc,
+                            x="Secondary Structure",
+                            y="Percentage",
+                            hue="Surface",
+                            palette=self.palette_IBS,
+                            ax=ax0)
+        
+        _= graph.set(title="",#Secondary structure element",
+                     xlabel="",
+                     xticklabels=[])
+
+        #### Amino acid composition
+        tc_resname = self.pepr2ds.domainDf.query("protrusion == True ").groupby("IBS")["residue_name"].value_counts(normalize=True).to_frame('Percentage').reset_index()
+        tc_resname["Surface"] = tc_resname["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
+        tc_resname["Percentage"] = tc_resname["Percentage"]*100
+        residue_name_order = tc_resname.query("Surface == 'IBS'").sort_values("Percentage", ascending=False).residue_name
+        graph2 = sns.barplot(data=tc_resname,
+                             x="residue_name",
+                             y="Percentage",
+                             hue="Surface",
+                             palette=self.palette_IBS,  
+                             ax=ax1,
+                             order = residue_name_order)
+        
+        _= graph2.set(title="", #Amino acid", 
+                      xlabel="",
+                     xticklabels=[],)
+        #_= graph2.set_xticklabels(graph2.get_xticklabels(),rotation=30, size=8)
+
+        ### ODDS RATIO SSE
+        oddratios_SSE = self.pepr2ds.analysis.oddsratio_graph(among="HP", feature="sec_struc_full", axs=ax0, title="Log(OR) - Secondary structures", xlim=(-1.5,1.0), return_dataset=True)
+        print(oddratios_SSE)
+
+        oddratios_SSE = self._significance(oddratios_SSE)
+
+        palette = self._get_palette_OR(oddratios_SSE)
+        graphOR1 = sns.barplot(data=oddratios_SSE, x="sec_struc_full",y="oddsratio", orient="v", palette=palette, linewidth=0, yerr=oddratios_SSE["err"], ax=ax2)
+        _= graphOR1.set(ylabel="log(OR)",
+                        xlabel="",
+                        ylim=[-1.90,1.6],)
+
+        #_= graphOR1.set_xticklabels(graphOR1.get_xticklabels(),rotation=30, size=10)
+        _= graphOR1.set_xticklabels(oddratios_SSE["labels"],rotation=30, size=10)
+
+        ### ODDS RATIO Amino acids
+
+        oddratios_AA = self.pepr2ds.analysis.oddsratio_graph(among="protrusions", feature="residue_name", axs=ax1,title="Log(OR) per amino acid",return_dataset=True)
+        #Reorder the oddratio dataframe according the residue_name_order
+        oddratios_AA = self._significance(oddratios_AA)
+
+        oddratios_AA = oddratios_AA.set_index("residue_name").loc[residue_name_order].reset_index()
+        palette = self._get_palette_OR(oddratios_AA)
+        graphOR2 = sns.barplot(data=oddratios_AA, x="residue_name",y="oddsratio", orient="v", palette=palette, linewidth=0, yerr=oddratios_AA["err"], ax=ax3)
+        _= graphOR2.set(ylabel="log(OR)",
+                        xlabel="",
+                        ylim=[-1.6,1.6],)
+
+        #_= graphOR2.set_xticklabels(graphOR2.get_xticklabels(),rotation=30, size=10)
+        _= graphOR2.set_xticklabels(oddratios_AA["labels"],rotation=30, size=10, horizontalalignment='right')
+
+        #Adding labels
+        #_= ax0.text(1,1.15, "Protrusions composition",transform=ax0.transAxes, fontsize=20)
+        #_= ax0.text(2,1.15, "(Protreins with HP at IBS)",transform=ax0.transAxes, fontsize=8)
+
+        _= ax0.text(-0.1,1.02, "A",transform=ax0.transAxes, fontsize=20)
+        _= ax1.text(-0.1,1.02, "B",transform=ax1.transAxes, fontsize=20)
+        # _= ax2.text(-0.1,0.8, "C",transform=ax2.transAxes, fontsize=20)
+        # _= ax3.text(-0.1,0.8, "D",transform=ax3.transAxes, fontsize=20)
+
+        self._save_fig(fig_filename, transparent=False, format=self.FORMAT)
+
+        self.pepr2ds.domainDf = self._backup_all.copy()
+
+    #######################################################
     # Figure 5 in the 2022 paper: neighbourhood composition
-    def make_figure_neighbourhood_composition(self):
-        pass
+    def make_figure_neighbourhood_composition(self,
+                                              fig_filename = "Fig 5",
+                                              drop_AF_below_b_factor = None):
 
+        # NB! The standard use (with CATH data, as indeed in Figure 5) assumes no AF entries are in the tagged dataset
+        if drop_AF_below_b_factor is None:
+            self.pepr2ds.domainDf = self._backup_prot_HPIBS.copy()
+        else:
+            # this case (with >= 70) was used in earlier Figure 8 in Notebook #4, but it was removed in the end
+            self.pepr2ds.domainDf = self._backup_prot_HPIBS.copy().query(f"(data_type == 'cathpdb') or (data_type == 'alphafold' and b_factor >= {drop_AF_below_b_factor})")
+
+        tableCount, oddratios_AA = self.pepr2ds.analysis.oddsratio_graph(among="is_hydrophobic_protrusion", feature="residue_name", envir=True, title="Log(OR) per amino acid",return_dataset=True, return_tablecount=True, condition="exposed", exclude_protrusion=True)
+        tableCount.reset_index(inplace=True)
+        tableCount["Percentage"] = tableCount.groupby(["IBS","residue_name"], as_index=False).apply(lambda x: x.Count/x.total*100).droplevel(0)
+        tableCount["Surface"] = tableCount["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
+
+        #tableCount, oddratios_AA = self.pepr2ds.analysis.oddsratio_graph(among="protrusions", feature="residue_name", envir=True, title="Log(OR) per amino acid",return_dataset=True, return_tablecount=True, condition="exposed", exclude_protrusion=True)
+
+        tableCountSSE, oddratios_SSE = self.pepr2ds.analysis.oddsratio_graph(among="is_hydrophobic_protrusion", feature="sec_struc_full", envir=True, title="Log(OR) per amino acid",return_dataset=True, return_tablecount=True, condition="exposed", exclude_protrusion=True)
+        tableCountSSE.reset_index(inplace=True)
+        tableCountSSE["Percentage"] = tableCountSSE.groupby(["IBS","sec_struc_full"], as_index=False).apply(lambda x: x.Count/x.total*100).droplevel(0)
+        tableCountSSE["Surface"] = tableCountSSE["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
+
+        #labelsdict = {"C":"Loop", "E":"β-strand","H":"α-helix"}
+        # TO DO: the map above generates a KeyError on the next calls below upon entries like "-", "B"
+        # Apparently, this evolved from a "sec_struc" feature on the call to oddsratio_graph to "sec_struc_full" 
+        # BUT, it seems safe to ignore, as both structures on the left-hand side are not used later (!)
+        labelsdict = {"H":'α-helix',
+                      "G":'α-helix',
+                      "I":'α-helix',
+                      "B":'β-strand',
+                      "E":'β-strand',
+                      "T":'Bend',
+                      "S":'Turn',
+                      "-":'Coil',}
+        tableCountSSE["Secondary Structure"] = tableCountSSE["sec_struc_full"].apply(lambda x: labelsdict[x])
+        oddratios_SSE.insert(0, "Secondary Structure", oddratios_SSE["sec_struc_full"].apply(lambda x: labelsdict[x]))
+
+        self.pepr2ds.domainDf = self._backup_all.copy()
+
+        ###
+        sns.set_style("whitegrid",{'legend.frameon':True}) #Seaborn style
+        sns.set(font_scale=1.2)
+        self.pepr2ds.domainDf = self._backup_prot_noHPIBS.copy()   #!?
+
+        fig = plt.figure(figsize=(10,5))
+        gs = gridspec.GridSpec(ncols=1, nrows=2, width_ratios=[1], height_ratios=[8,3])
+        gs.update(hspace=0.05)
+        ax0 = plt.subplot(gs[0,0])
+        ax1 = plt.subplot(gs[1,0])
+
+        #### Amino acid composition
+        tc_resname = tableCount
+        residue_name_order = tc_resname.query("Surface == 'IBS'").sort_values("Percentage", ascending=False).residue_name
+        graph2 = sns.barplot(data=tc_resname,
+                             x="residue_name",
+                             y="Percentage",
+                             hue="Surface",
+                             palette=self.palette_IBS,  
+                             ax=ax0,
+                             order = residue_name_order,)
+
+        _= graph2.set(title="", #"Hydrophobic protrusions exposed environment composition", 
+                      xlabel="",
+                      xticklabels=[])
+
+        ### ODDS RATIO Amino acids
+
+        #Reorder the oddratio dataframe according the residue_name_order
+        oddratios_AA = oddratios_AA.set_index("residue_name").loc[residue_name_order].reset_index()
+        palette = self._get_palette_OR(oddratios_AA)
+        graphOR2 = sns.barplot(data=oddratios_AA, x="residue_name",y="oddsratio", orient="v", palette=palette, linewidth=0, yerr=oddratios_AA["err"], ax=ax1)
+        _= graphOR2.set(ylabel="log(OR)",
+                        xlabel="",
+                        ylim=(-1,1.5),)
+
+        _= graphOR2.set_xticklabels(graphOR2.get_xticklabels(),rotation=30, size=12)
+        oddratios_AA = self._significance(oddratios_AA)
+        _= graphOR2.set_xticklabels(oddratios_AA["labels"], horizontalalignment="right",rotation=30, size=12)
+
+        #Adding labels
+        # _= ax0.text(0.1,1.15, "Hydrophobic protrusions exposed environment composition",transform=ax0.transAxes, fontsize=20)
+        # _= ax0.text(-0.1,1.02, "A",transform=ax0.transAxes, fontsize=20)
+        # _= ax1.text(-0.1,1.02, "B",transform=ax1.transAxes, fontsize=20)
+        # _= ax2.text(-0.1,0.8, "C",transform=ax2.transAxes, fontsize=20)
+        # _= ax3.text(-0.1,0.8, "D",transform=ax3.transAxes, fontsize=20)
+
+        self._save_fig(fig_filename, transparent=False, format=self.FORMAT)
+        self.pepr2ds.domainDf = self._backup_all.copy()
+
+    #########################################################################################################
     # Figure 6 in the 2022 paper: number of structures with/without HP at IBS and comparison of both datasets
-    def make_figure_number_of_structures_w_and_wo_HP_at_IBS(self):
-        pass
+    def make_figure_number_of_structures_w_and_wo_HP_at_IBS(self, fig_filename="Fig 6"):
+        count_protr_ibs_HPIBS = self._backup_prot_HPIBS.query('IBS == True and atom_name == "CB"').groupby('cathpdb').progress_apply(lambda group: self._count_protrusion_per_pdb(group)).to_frame("count")
+        count_protr_ibs_noHPIBS = self._backup_prot_noHPIBS.query('IBS == True and atom_name == "CB"').groupby('cathpdb').progress_apply(lambda group: self._count_protrusion_per_pdb(group)).to_frame("count")
 
-    # raw values and statistical test
-    def statistical_tests_on_HP_at_IBS(self):
-        pass
+        sns.set(font_scale=1.2)
+        sns.set_style("whitegrid",{'legend.frameon':True}) #Seaborn style
+        plt.rcParams["font.family"] = "DejaVu Sans" #Old = "DejaVu Sans" / "DejaVu Serif"
 
+        fig = plt.figure(figsize=(15,5))
+        gs = gridspec.GridSpec(ncols=2, nrows=1, width_ratios=[1,1], height_ratios=[1])
+        ax0 = plt.subplot(gs[0,0])
+        ax1 = plt.subplot(gs[0,1])
+
+        #Distribution two populations
+        count_protr_ibs_HPIBS["dataset"] = "with hydr. protr. (IBS)"
+        count_protr_ibs_noHPIBS["dataset"] = "without hydr. protr. (IBS)"
+        count_IBS = pd.concat([count_protr_ibs_HPIBS,
+                               count_protr_ibs_noHPIBS,
+                              ], axis=0)
+
+        max_x_IBS = math.ceil(count_IBS["count"].max())
+
+        graph_noHPIBS = sns.histplot(count_IBS, 
+                                     x="count",
+                                     hue="dataset",
+                                     stat="probability",
+                                     bins=list(range(0,max_x_IBS)),
+                                     #kind="kde",
+                                     alpha=0.5,
+                                     palette=["#FFC20A","#0C7BDC"],
+                                     edgecolor="gray", linewidth=0.2,
+                                     common_norm=False,
+                                     kde=True,
+                                     ax=ax0,)
+
+        _ = graph_noHPIBS.set(xlabel="Number of protrusions",
+                              ylabel="Frequency",
+                              #ylim=[0,575],
+                              #xlim=[0,48],f
+                              )
+
+        _ = graph_noHPIBS.set_xticks(range(0,max_x_IBS,2))
+        # graph_noHPIBS.set_title("Number of protrusion in the IBS per dataset", fontsize=11)
+        sns.despine(left=False, bottom=False, top=False, right=False) #All 4 borders
+
+        ### Barplot
+
+        count_no_hydr = self._backup_prot_noHPIBS[["cathpdb","domain"]].drop_duplicates().domain.value_counts().to_frame().reset_index().rename(columns={"index":"domain","domain":"without hydrophobic protrusions"})
+
+        # count_no_hydr.set_index('domain')
+        number_of_structures = self.pepr2ds.domainDf[["cathpdb","domain"]].drop_duplicates().domain.value_counts()
+        #number_of_structures.name = 'Number of PDBS'
+        number_of_structures = number_of_structures.to_frame().reset_index().rename(columns={'domain':'Number of PDBS','index':'domain'})
+
+        count_no_hydr = count_no_hydr.merge(number_of_structures)
+
+        count_no_hydr["percentage"] = count_no_hydr["without hydrophobic protrusions"] / count_no_hydr["Number of PDBS"]
+
+        #count_no_hydr.sort_values(by="Number of PDBS", inplace=True, ascending=False)
+
+        order = sorted(list(count_no_hydr.domain.unique()))
+        #order = ['ANNEXIN', 'C1', 'C2', 'C2DIS', 'PH', 'PLA', 'PLD', 'PX', 'START']
+
+        if self.INCLUDE_AF_FROM_START==True:
+            count_no_hydr = count_no_hydr.set_index("domain")
+
+            count_no_hydr = count_no_hydr.loc[order]
+            count_no_hydr = count_no_hydr.reset_index()
+            
+        count_no_hydr.domain = count_no_hydr.domain.astype(str)
+
+        graphdata_nohydr = count_no_hydr.melt(value_vars=["without hydrophobic protrusions","Number of PDBS"],
+                                              id_vars=["domain"],
+                                              value_name="count",
+                                              var_name="Observation")
+
+        bar1 = sns.barplot(x="domain",
+                           y="count",
+                           data=graphdata_nohydr.query("Observation == 'Number of PDBS'"),
+                           color='royalblue',
+                           order=order,
+                           ax=ax1) 
+
+        bar2 = sns.barplot(x="domain",
+                           y="count",
+                           data=graphdata_nohydr.query("Observation == 'without hydrophobic protrusions'"),
+                           color='#85BDED',
+                           errorbar=None,
+                           order=order,
+                           ax=ax1)
+
+        new_labels = []
+        for dom in order:
+            if dom == "C2DIS":
+                new_labels.append("DIS-C2")
+            elif dom == "PLD":
+                new_labels.append("PLC/PLD")
+            else:
+                new_labels.append(dom)
+        _ = bar2.set_xticklabels(new_labels)
+
+        groupedvalues=graphdata_nohydr.groupby('domain').sum().reset_index()
+
+        #Adding barplot
+        count_no_hydr = count_no_hydr.reset_index(drop=True)
+        count_no_hydr = count_no_hydr.set_index("domain").loc[order].reset_index()
+        for index, row in count_no_hydr.iterrows():
+            _ = bar2.text(row.name,
+                          row["without hydrophobic protrusions"]+0.1, # TO DO: experiment with up to +5 depending on the max. number of structures
+                          f"{row['percentage']*100:.1f}%",
+                          color="black",
+                          ha="center",
+                          size=12)
+
+        #Legend
+        top_bar = mpatches.Patch(color='royalblue', label='Total')
+        bottom_bar = mpatches.Patch(color='#85BDED', label='Without hydr. protr. (IBS)')
+        _ = plt.legend(handles=[top_bar, bottom_bar])
+
+        _ = ax1.set(title ="",# "Number of structures per superfamilly",
+                    xlabel="Superfamilly", 
+                    ylabel="Number of structures", 
+                    ylim=None,)
+        _ = ax1.tick_params(labelsize=7)
+
+        _= ax0.text(-0.1,1.02, "A",transform=ax0.transAxes, fontsize=20)
+        _= ax1.text(-0.1,1.02, "B",transform=ax1.transAxes, fontsize=20)
+
+        # Increase fontsize
+        for label in (ax1.get_xticklabels() + ax1.get_yticklabels()):
+            _ = label.set_fontsize(14)
+
+        for label in (ax0.get_xticklabels() + ax0.get_yticklabels()):
+            _ = label.set_fontsize(14)
+
+        _ = ax1.xaxis.label.set_size(14)
+        _ = ax0.xaxis.label.set_size(14)
+        _ = ax0.yaxis.label.set_size(14)
+        _ = ax1.yaxis.label.set_size(14)
+
+        for label in ax1.get_xticklabels():
+            _ = label.set_rotation(45)
+            _ = label.set_ha('right')
+            _ = label.set_rotation_mode("anchor")
+
+        _ = plt.setp(ax1.get_legend().get_texts(), fontsize='14')
+        _ = plt.setp(ax0.get_legend().get_texts(), fontsize='14')
+        _ = plt.setp(ax0.get_legend().get_title(), fontsize='15')
+
+        self._save_fig(fig_filename, transparent=False, format=self.FORMAT)
+        
+        # raw values and statistical test
+        #print(count_no_hydr.query("domain not in ['C2DIS','START','ENTH','PLA','PX']").percentage.mean())
+        print(f"\n{count_no_hydr}")
+        #print(count_no_hydr.percentage.mean())
+        
+        print("\nSee below for difference between the two subsets (HPIBS, noHPIBS)")
+        pop1 = count_protr_ibs_HPIBS["count"]
+        pop2 = count_protr_ibs_noHPIBS["count"]
+        self._equality_test(pop1,pop2, "greater")
+
+    ####################################################################################################################
     # Figure 7 in the 2022 paper: composition of the IBS and the protrusion neighbourhood for proteins WITHOUT HP AT IBS
-    def make_figure_composition_for_proteins_without_HP_at_IBS(self):
-        pass
+    def make_figure_composition_for_proteins_without_HP_at_IBS(self, fig_filename="Fig 7"):
+        self.pepr2ds.domainDf = self._backup_prot_noHPIBS.copy()
 
-    # Preparation of AlphaFold data insertion
-    def prepare_alphafold_data_insertion(self):
-        pass
+        tableCount_noHPIBS, oddratios_AA_noHPIBS_envir = self.pepr2ds.analysis.oddsratio_graph(among="protrusions", feature="residue_name", envir=True, title="Log(OR) per amino acid",return_dataset=True, return_tablecount=True, condition="exposed", exclude_protrusion=True)
+        tableCount_noHPIBS.reset_index(inplace=True)
+        tableCount_noHPIBS["Percentage"] = tableCount_noHPIBS.groupby(["IBS","residue_name"], as_index=False).apply(lambda x: x.Count/x.total*100).droplevel(0)
+        tableCount_noHPIBS["Surface"] = tableCount_noHPIBS["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
 
-    # Figure 8 in the 2022 paper: superfamily decomposition of Exposed environment of hydrophobic protrusions at the IBS
-    def make_figure_superfamily_decomposition(self):
-        pass
+        #tableCount_noHPIBS, oddratios_AA_noHPIBS_envir = self.pepr2ds.analysis.oddsratio_graph(among="protrusions", feature="residue_name", envir=True, title="Log(OR) per amino acid",return_dataset=True, return_tablecount=True, condition="exposed", exclude_protrusion=True)
 
-    # Table 1: data collection and processing
-    def make_table_data_collection_and_processing(self):
-        pass
+        tableCountSSE_noHPIBS, oddratios_SSE = self.pepr2ds.analysis.oddsratio_graph(among="is_hydrophobic_protrusion", feature="sec_struc_full", envir=True, title="Log(OR) per amino acid",return_dataset=True, return_tablecount=True, condition="exposed", exclude_protrusion=True)
+        tableCountSSE_noHPIBS.reset_index(inplace=True)
+        tableCountSSE_noHPIBS["Percentage"] = tableCountSSE_noHPIBS.groupby(["IBS","sec_struc_full"], as_index=False).apply(lambda x: x.Count/x.total*100).droplevel(0)
+        tableCountSSE_noHPIBS["Surface"] = tableCountSSE_noHPIBS["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
 
-    # Table 2: classification of amino acids
-    def make_table_classification_of_aminoacids(self):
-        pass
+        #labelsdict = {"C":"Loop", "E":"β-strand","H":"α-helix"}
+        # TO DO: the map above generates a KeyError on the next calls below upon entries like "-", "B"
+        # Apparently, this evolved from a "sec_struc" feature on the call to oddsratio_graph to "sec_struc_full" 
+        # BUT, it seems safe to ignore, as both structures on the left-hand side are not used later (!)
+        labelsdict = {"H":'α-helix',
+                      "G":'α-helix',
+                      "I":'α-helix',
+                      "B":'β-strand',
+                      "E":'β-strand',
+                      "T":'Bend',
+                      "S":'Turn',
+                      "-":'Coil',}
+        tableCountSSE_noHPIBS["Secondary Structure"] = tableCountSSE_noHPIBS["sec_struc_full"].apply(lambda x: labelsdict[x])
+        oddratios_SSE.insert(0, "Secondary Structure", oddratios_SSE["sec_struc_full"].apply(lambda x: labelsdict[x]))
+        
+        self.pepr2ds.domainDf = self._backup_prot_noHPIBS.copy()
 
-    # Table 3: description of the properties observed (A) among sub-dataset (B) used in the odds ratio calculation (equation X).
-    def make_table_description_of_properties(self):
-        pass
+        ###
+        plt.clf()
+        sns.set_style("whitegrid") #Seaborn style
+        fig = plt.figure(figsize=(15,5))
+        gs = gridspec.GridSpec(ncols=2, nrows=2, width_ratios=[1,1], height_ratios=[8,3])
+        gs.update(hspace=0.05)
+        ax0 = plt.subplot(gs[0,0])
+        ax1 = plt.subplot(gs[0,1])
+        ax2 = plt.subplot(gs[1,0])
+        ax3 = plt.subplot(gs[1,1])
+
+        #1. Protrusions AA composition
+        tc_resname_protrusions = self.pepr2ds.domainDf.query("protrusion == True").groupby("IBS")["residue_name"].value_counts(normalize=True).to_frame('Percentage').reset_index()
+        tc_resname_protrusions["Surface"] = tc_resname_protrusions["IBS"].apply(lambda x: "IBS" if x == True else "nonIBS")
+        tc_resname_protrusions["Percentage"] = tc_resname_protrusions["Percentage"]*100
+        residue_name_order = tc_resname_protrusions.query("Surface == 'IBS'").sort_values("Percentage", ascending=False).residue_name
+        graph_protrusions = sns.barplot(data=tc_resname_protrusions,
+                                        x="residue_name",
+                                        y="Percentage",
+                                        hue="Surface",
+                                        palette=self.palette_IBS,  
+                                        ax=ax0,
+                                        order = residue_name_order)
+        _= graph_protrusions.set(title="", #Protrusion composition", 
+                                 xlabel="",
+                                 xticklabels=[],)
+
+        #2.1 OR values
+        oddratios_AA_protrusions = self.pepr2ds.analysis.oddsratio_graph(among="protrusions", feature="residue_name", axs=ax1,title="Log(OR) per amino acid",return_dataset=True)
+
+        #Reorder the oddratio dataframe according the residue_name_order
+        oddratios_AA_protrusions = oddratios_AA_protrusions.set_index("residue_name").loc[residue_name_order].reset_index()
+        palette = self._get_palette_OR(oddratios_AA_protrusions)
+        graphOR2 = sns.barplot(data=oddratios_AA_protrusions, x="residue_name",y="oddsratio", orient="v", palette=palette, linewidth=0, yerr=oddratios_AA_protrusions["err"], ax=ax2)
+        _= graphOR2.set(ylabel="log(OR)",
+                        xlabel="",
+                        ylim=(-1,1.5),)
+        _= graphOR2.set_xticklabels(graphOR2.get_xticklabels(),rotation=30, size=10)
+        oddratios_AA_protrusions = self._significance(oddratios_AA_protrusions)
+        _= graphOR2.set_xticklabels(oddratios_AA_protrusions["labels"], horizontalalignment="right",rotation=30, size=11)
+
+        #2.2 Environment protrusions graph
+        tc_resname_envir = tableCount_noHPIBS
+        residue_name_order = tc_resname_envir.query("Surface == 'IBS'").sort_values("Percentage", ascending=False).residue_name
+        graph2 = sns.barplot(data=tc_resname_envir,
+                             x="residue_name",
+                             y="Percentage",
+                             hue="Surface",
+                             palette=self.palette_IBS,  
+                             ax=ax1,
+                             order = residue_name_order,)
+
+        _= graph2.set(title="", #Protrusion environment composition", 
+                      xlabel="",
+                      xticklabels=[])
+                                 
+        oddratios_AA_noHPIBS_envir = oddratios_AA_noHPIBS_envir.set_index("residue_name").loc[residue_name_order].reset_index()
+        palette = self._get_palette_OR(oddratios_AA_noHPIBS_envir)
+        graphOR2 = sns.barplot(data=oddratios_AA_noHPIBS_envir, x="residue_name",y="oddsratio", orient="v", palette=palette, linewidth=0, yerr=oddratios_AA_noHPIBS_envir["err"], ax=ax3)
+        _= graphOR2.set(ylabel="log(OR)",
+                        xlabel="",
+                        ylim=(-1,1.5),)
+
+        _= graphOR2.set_xticklabels(graphOR2.get_xticklabels(),rotation=30, size=11)
+        oddratios_AA_noHPIBS_envir = self._significance(oddratios_AA_noHPIBS_envir)
+
+        newlabels = []
+        for label in oddratios_AA_noHPIBS_envir["labels"]:
+            sig=label[:-3]
+            AA = label[-3:]
+            newAA = AA[0] + AA[1].lower() + AA[2].lower()
+            newlabel = sig+newAA
+            newlabels.append(newlabel)
+        _= graphOR2.set_xticklabels(newlabels, horizontalalignment="right",rotation=30, size=11)
+
+        #Adding labels
+        #_= ax0.text(0.6,1.15, "Protrusions composition (protein without HP at IBS)",transform=ax0.transAxes, fontsize=20)
+        _= ax0.text(-0.1, 1.02, "A", transform=ax0.transAxes, fontsize=20)
+        _= ax1.text(-0.1, 1.02, "B", transform=ax1.transAxes, fontsize=20)
+        # _= ax2.text(-0.1,0.8, "C",transform=ax2.transAxes, fontsize=20)
+        # _= ax3.text(-0.1,0.8, "D",transform=ax3.transAxes, fontsize=20)
+
+        self._save_fig(fig_filename, transparent=False, format=self.FORMAT)
+        self.pepr2ds.domainDf = self._backup_all.copy()
+
+    ####################################################################################################################
+    # Figure 8 in the 2022 paper: superfamily decomposition of exposed environment of hydrophobic protrusions at the IBS
+    # NB! On Notebook #4, this is listed as Figure 9 (the 8th one seems to be moved to supplement material)
+    def make_figure_superfamily_decomposition_exposed_env_HP(self,
+                                                             fig_filename="Fig 8",
+                                                             xlsx_filename="Fib8B_data"):
+        if 'alphafold' not in self._data_type:
+            print("\nmake_figure_superfamily_decomposition_exposed_env_HP() depends on data from")
+            print("AlphaFold entries, which are not in the tagged dataset provided to the")
+            print("current object. Check the 'db' argument given to load_IBS_data() or")
+            print("add_IBS_data() methods of DatasetManager\n")
+            return
+
+        sns.set(font_scale=1, style="whitegrid")
+        plt.subplots(figsize=(14, 5))
+        gs = gridspec.GridSpec(ncols=2, nrows=1)
+        ax0 = plt.subplot(gs[0,0])
+        ax1 = plt.subplot(gs[0,1])
+
+        graph_superfamilies_type = self._make_ibs_perdomain_graph(data = self._backup_all.query("(data_type == 'cathpdb') or (data_type == 'alphafold' and b_factor >= 70)"),
+                                                                  PERTYPE = True,
+                                                                  nrow = 3,
+                                                                  title = "",#Hydrophobic protrusions exposed environment at the IBS",
+                                                                  outputname = "IBS_protrusions_composition_HYDRO_perdomain2",
+                                                                  ax = ax0,
+                                                                  legend = True,
+                                                                  envir = False,
+                                                                  #showstat = ["Negative","Positive", "Polar","Non-polar", "Hydrophobic,H-aromatic","Hydrophobic,H-non-aromatic"],
+                                                                  subset = "IBS",   # NB! Also tried subset = "protrusion" on earlier, removed figure (under NB #4 Figure 9)
+                                                                  fontsize = 10)
+
+        graph_superfamilies_aa = self._make_ibs_perdomain_graph(data = self._backup_all.query("(data_type == 'cathpdb') or (data_type == 'alphafold' and b_factor >= 70)"),
+                                                                PERTYPE = False,
+                                                                nrow = 3,
+                                                                title = "",#Hydrophobic protrusions exposed environment at the IBS",
+                                                                outputname = "IBS_protrusions_composition_HYDRO_perdomain2",
+                                                                ax = ax1,
+                                                                legend = True,
+                                                                envir = False,
+                                                                #showstat = ["Negative","Positive", "Polar","Non-polar", "Hydrophobic,H-aromatic","Hydrophobic,H-non-aromatic"],
+                                                                subset = "IBS",
+                                                                savedata = xlsx_filename)
+
+        _= ax0.text(-0.1,1.02, "A",transform=ax0.transAxes, fontsize=20)
+        _= ax1.text(-0.1,1.02, "B",transform=ax1.transAxes, fontsize=20)
+
+        self._save_fig(fig_filename, transparent=False, format=self.FORMAT)
+
+    def _make_ibs_perdomain_graph(self,
+                                  data: pd.DataFrame,
+                                  PERTYPE,
+                                  nrow,
+                                  title,
+                                  outputname,
+                                  ax = None,
+                                  legend = True,
+                                  showstat = None,
+                                  return_data = False,
+                                  envir = False,
+                                  legend_loc = 'center',
+                                  among = "protrusions",
+                                  subset = "IBS",
+                                  fontsize = 8,
+                                  savedata = None):
+        # Fetch the dataset
+        domlist = self.settings.active_superfamilies
+        if subset == "IBS":
+            dfibs = data.query("IBS == True and exposed == True and domain in @domlist")
+        if subset == "protrusion":
+            dfibs = data.query("IBS == True and protrusion == True and domain in @domlist")
+        dfibs.residue_name = dfibs.residue_name.astype(str)
+
+        #Set colors
+        sns.set_style("whitegrid")
+        plt.rcParams["font.family"] = "DejaVu Sans" #Old = "DejaVu Sans" / "DejaVu Serif"
+        graph_res_data = dfibs.residue_name.value_counts(normalize=True).to_frame()*100
+        colors_per_type = {x:self.colorsPerType[self._AATYPE[x]] for x in list(graph_res_data.index)}
+        colors_per_type_and_aa = {x:self.COLORS_taylor[x] for x in list(self.COLORS_taylor.keys())}
+
+        if ax == None:
+            fig, ax = plt.subplots(figsize=(10, 5))
+
+        if envir==False:
+            graph_res_data = dfibs.groupby("domain").residue_name.value_counts(normalize=True).to_frame("Percentage")*100
+        else:
+            local_backup = self.pepr2ds.domainDf.copy()
+            self.pepr2ds.domainDf = data
+            graph_res_data = self.pepr2ds.analysis.oddsratio_graph(among = among,
+                                                                   feature = "residue_name",
+                                                                   envir = True,
+                                                                   title = "Log(OR) per amino acid",
+                                                                   return_dataset = True,
+                                                                   return_tablecount = True,
+                                                                   condition = "exposed",
+                                                                   exclude_protrusion = True,
+                                                                   envirPerDomain = True)
+
+        graph_res_data.reset_index(inplace=True)
+        graph_res_data["type"] = graph_res_data["residue_name"].apply(lambda x: self._AATYPE[x])
+        graph_res_data = graph_res_data.set_index(["domain","type"])
+        graph_res_data["Percentage_Type"] = graph_res_data.groupby(["domain","type"]).Percentage.sum()
+        graph_res_data.reset_index(inplace=True)
+
+        if PERTYPE:
+            order_legend = ["Positive",
+                            "Negative",
+                            "Polar",
+                            "Non-polar",
+                            "Hydrophobic,H-aromatic",
+                            "Hydrophobic,H-non-aromatic"]
+            color_palette = self.colorsPerType
+            hue = "type"
+            weights = "Percentage_Type"
+            graph_res_data = graph_res_data.drop_duplicates(["domain","type","Percentage_Type"])
+            outputname += "_pertype"
+        else:
+            order_legend = ["LYS","ARG",
+                            "ASP","GLU",
+                            "HIS","ASN","GLN","THR","SER",
+                            "PRO","ALA","VAL","GLY",
+                            "TYR","TRP","PHE",
+                            "LEU","ILE","CYS","MET"]
+
+            color_palette = colors_per_type_and_aa
+            hue = 'residue_name'
+            weights = 'Percentage'
+            outputname += "_perres"
+
+        #Remove what's not in the dataset
+        Labels = graph_res_data[hue].unique()
+        order_legend = [x for x in order_legend if x in Labels]
+        color_palette =  { key: color_palette[key] for key in Labels}
+
+        #print(graph_res_data)
+        # NB! Would just use self.settings.active_superfamilies, but on smaller XP data some superfamilies might have no entry in 'graph_res_data' at this point
+        #order_domains = sorted(self.settings.active_superfamilies)
+        order_domains = sorted(graph_res_data.domain.unique())
+        graph_res_data = graph_res_data.set_index("domain").loc[order_domains].reset_index()
+
+        graph_res = sns.histplot(graph_res_data, 
+                                 y = 'domain',
+                                 hue = hue,
+                                 weights = weights,
+                                 multiple = 'stack',
+                                 #palette = 'tab20c_r',
+                                 shrink = 0.8,
+                                 #alpha = 1,
+                                 ax = ax,
+                                 hue_order = order_legend[::-1],
+                                 edgecolor = 'k',
+                                 linewidth = 0.1,
+                                 palette = color_palette,
+                                 legend = legend)
+
+        domains_in_graph = list(graph_res_data.domain.unique())
+        new_labels = []
+        for dom in order_domains:
+            if dom == "C2DIS":
+                new_labels.append("DIS-C2")
+            elif dom == "PLD":
+                new_labels.append("PLC/PLD")
+            else:
+                new_labels.append(dom)
+        graph_res.set_yticklabels(new_labels) # NB! legacy warning here
+
+        if PERTYPE:
+            for rec, label in zip(graph_res.patches,graph_res_data['Percentage_Type'].round(1).astype(str)):
+                height = rec.get_height()
+                width = rec.get_width()
+                val = f"{rec.get_width():.1f} "
+                size=fontsize
+                #if PERTYPE:
+                #    size = 8
+                #else:
+                #    size = 4
+                ax.text((rec.xy[0]+rec.get_width()/2), (rec.xy[1]+rec.get_height()/2), val, size=size, color="#383838",
+                        ha = 'center', va='center',)
+
+        if savedata != None:
+            graph_res_data.to_excel(f"{self.settings.FIGURESFOLDER}article/{savedata}.xlsx")
+
+        if legend:
+            self._move_seaborn_legend(graph_res, 
+                                      legend_loc, 
+                                      title = "",
+                                      order = order_legend,
+                                      ncol = math.ceil(len(Labels)/nrow), 
+                                      bbox_to_anchor = (0.5,-0.23))
+
+        _ = graph_res.set(title=title, 
+                          xlabel="Percentage", 
+                          ylabel="",
+                          xlim=(-1,101),)
+
+        """
+        #Add Groups
+        rect1 = patches.Rectangle((-0.5, -0.5), 101, 2.95, linewidth=0.5, edgecolor='k', facecolor='none', linestyle="-")
+        rect2 = patches.Rectangle((-0.5, 2.55), 101, 3.9, linewidth=0.5, edgecolor='k', facecolor='none', linestyle="-")
+        rect3 = patches.Rectangle((-0.5, 6.55), 101, 2.9, linewidth=0.5, edgecolor='k', facecolor='none', linestyle="-")
+        _ = ax.add_patch(rect1)
+        _ = ax.add_patch(rect2)
+        _ = ax.add_patch(rect3)
+        """
+
+        if envir == True:
+            self.pepr2ds.domainDf = local_backup.copy()
+
+        if showstat:
+            if type(showstat) != type([]):
+                showstat = [showstat]
+            for typequery in showstat:
+                print(typequery)
+                print(graph_res_data.query("type == @typequery").describe())
+                print(graph_res_data.query("type == @typequery").describe())
+
+        if return_data:
+            plt.close()
+            return(graph_res_data)
+
+        if ax == None:
+            self._save_fig(outputname)
+        else:
+            return graph_res
+
+    ######################################################################################################
+    # Extra figure: exposed environment of hydrophobic protrusions with AlphaFold structures
+    # NB! On Notebook #4, this code is deactivated, labeled "Figure 8" but it does not appear on the paper
+    def make_figure_exposed_HP_env_with_AF(self, fig_filename = "Fig 8 - OLD"):
+        if 'alphafold' not in self._data_type:
+            print("\nmake_figure_exposed_HP_env_with_AF() depends on data from")
+            print("AlphaFold entries, which are not in the tagged dataset provided to the")
+            print("current object. Check the 'db' argument given to load_IBS_data() or")
+            print("add_IBS_data() methods of DatasetManager\n")
+            return
+
+        # this is exactly Figure 5, with AF entries taken into account
+        self.make_figure_neighbourhood_composition(fig_filename = fig_filename, drop_AF_below_b_factor = 70)
 
     # Table 4: p-values for wilcoxon signed rank test
     def make_table_p_values_for_wilcoxon_test(self):

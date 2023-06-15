@@ -63,11 +63,15 @@ class DatasetManager:
         if self.settings.XP_MODE:
             self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_XP"
             self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_XP"
-            self._IBS_DATASET_FILENAME = "TAGGED_MERGED_DATASET_XP"
+            self._IBS_FROM_CATH_DATASET_FILENAME = "TAGGED_MERGED_DS_FROM_CATH_XP"
+            self._IBS_FROM_AF_DATASET_FILENAME = "TAGGED_MERGED_DS_FROM_AF_XP"
+            self._IBS_FROM_CATHAF_DATASET_FILENAME = "TAGGED_MERGED_DS_FROM_CATHAF_XP"
         else:
             self._FULL_DATASET_FILENAME = "DATASET_peprmint_allatoms_d25"
             self._LIGHT_DATASET_FILENAME = "DATASET_peprmint_d25"
-            self._IBS_DATASET_FILENAME = "TAGGED_MERGED_DATASET"
+            self._IBS_FROM_CATH_DATASET_FILENAME = "TAGGED_MERGED_DS_FROM_CATH"
+            self._IBS_FROM_AF_DATASET_FILENAME = "TAGGED_MERGED_DS_FROM_AF"
+            self._IBS_FROM_CATHAF_DATASET_FILENAME = "TAGGED_MERGED_DS_FROM_CATHAF"
 
         self.DATASET = None
         self.alphafold_utils = None
@@ -158,6 +162,19 @@ class DatasetManager:
     def add_IBS_data(self, db="cath+af"):
         # Interfacial binding sites (IBS) tagging in the dataset
         # Originally on the "tools notebooks"; ported to ibs_tagging.py
+        path_to_merged_file = self.settings.WORKDIR
+        if db == "cath":
+            path_to_merged_file += self._IBS_FROM_CATH_DATASET_FILENAME + ".pkl"
+        elif db == "alphafold":
+            path_to_merged_file += self._IBS_FROM_AF_DATASET_FILENAME + ".pkl"
+        elif db == "cath+af":
+            path_to_merged_file += self._IBS_FROM_CATHAF_DATASET_FILENAME + ".pkl"
+        else:
+            print(f"> Warning: did not recognize argument '{db}' to add_IBS_data")
+            print(f"           - defaulting to 'cath+af'")
+            db = "cath+af"
+            path_to_merged_file += self._IBS_FROM_CATHAF_DATASET_FILENAME + ".pkl"
+
         self.IBS_tagger = IBSTagging(self.settings, data_type=db)
         self.IBS_tagger.run(self.DATASET)
         self.IBS_tagger.make_analysis_report()
@@ -167,12 +184,23 @@ class DatasetManager:
         #self.build(recalculate=False)
 
         # serialize tagger object e.g. to generate figures later on
-        path_to_merged_file = self.settings.WORKDIR + self._IBS_DATASET_FILENAME + ".pkl"
         with open(path_to_merged_file, "wb") as outfile:
             pickle.dump(self.IBS_tagger, outfile)
 
-    def load_IBS_data(self) -> bool:
-        path_to_merged_file = self.settings.WORKDIR + self._IBS_DATASET_FILENAME + ".pkl"
+    def load_IBS_data(self, db="cath+af") -> bool:
+        path_to_merged_file = self.settings.WORKDIR
+        if db == "cath":
+            path_to_merged_file += self._IBS_FROM_CATH_DATASET_FILENAME + ".pkl"
+        elif db == "alphafold":
+            path_to_merged_file += self._IBS_FROM_AF_DATASET_FILENAME + ".pkl"
+        elif db == "cath+af":
+            path_to_merged_file += self._IBS_FROM_CATHAF_DATASET_FILENAME + ".pkl"
+        else:
+            print(f"> Warning: did not recognize argument '{db}' to load_IBS_data")
+            print(f"           - defaulting to 'cath+af'")
+            db = "cath+af"
+            path_to_merged_file += self._IBS_FROM_CATHAF_DATASET_FILENAME + ".pkl"
+        
         if not os.path.isfile(path_to_merged_file):
             print("Could not find the tagged dataset file ({0})".format(path_to_merged_file))
             print("Use add_IBS_data() from DatasetManager to compute it")
