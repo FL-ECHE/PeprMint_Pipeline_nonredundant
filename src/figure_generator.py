@@ -69,11 +69,7 @@ class FigureGenerator:
     def __init__(self, global_settings: Settings, tagged_dataset: Dataset):
         self.settings = global_settings
         self.pepr2ds = tagged_dataset
-
-        self.INCLUDE_AF_FROM_START = self.settings.config_file.getboolean(
-            'FIGURE_GENERATION', 'include_alphafold_from_the_beginning')
-
-        self.FILESUFFIX = "-AF" if self.INCLUDE_AF_FROM_START else ""
+        
         self._silent_eq_test = False
 
         # Warning
@@ -541,10 +537,7 @@ class FigureGenerator:
 
         fig, axs = plt.subplots(1, 3, figsize=(15, 5))
         
-        if self.INCLUDE_AF_FROM_START:
-            ylim=[0,900]
-        else:
-            ylim=[0,575]
+        ylim = [0,900] if 'alphafold' in self._data_type else [0,575]
         
         #GRAPH A
         count_whole = pd.concat([count_protr_whole,
@@ -1011,9 +1004,8 @@ class FigureGenerator:
         order = sorted(list(count_no_hydr.domain.unique()))
         #order = ['ANNEXIN', 'C1', 'C2', 'C2DIS', 'PH', 'PLA', 'PLD', 'PX', 'START']
 
-        if self.INCLUDE_AF_FROM_START==True:
+        if 'alphafold' in self._data_type:
             count_no_hydr = count_no_hydr.set_index("domain")
-
             count_no_hydr = count_no_hydr.loc[order]
             count_no_hydr = count_no_hydr.reset_index()
             

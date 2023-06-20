@@ -69,16 +69,18 @@ class DataRetriever:
         """
 
         if self.settings.FORMER_WORKING_DIR:
-            print('Error: working directory already exists; remove it if you want to fetch all data from scratch with DataRetriever.fetch()')
-            return False
-        else:
-            print(f'> Data retriever (domains selected in .config file: {self.settings.active_superfamilies})')
-            self._retrieve_cath_domains()
-            self._retrieve_uniprot_to_pdb_correspondence()
-            self._retrieve_prosite()
-            self._retrieve_cath_pdb_files()
-            self._copy_ref_pdb_files()
-            return True
+            print('WARNING! Working directory already exists! It is recommended to remove it if')
+            print('         you want to fetch all data from scratch with DataRetriever.fetch()')
+
+        print(f'> Data retriever (domains selected in .config file: {self.settings.active_superfamilies})')
+        
+        self._retrieve_cath_domains()
+        self._retrieve_uniprot_to_pdb_correspondence()
+        self._retrieve_prosite()
+        self._retrieve_cath_pdb_files()
+        self._copy_ref_pdb_files()
+        
+        return True
 
     def _retrieve_cath_domains(self):
         # TO DO: release 4_2_0 or latest?

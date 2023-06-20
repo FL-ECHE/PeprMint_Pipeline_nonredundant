@@ -496,8 +496,12 @@ class Structure(Attributes):
         pdb_list_series = pd.Series(pdblist)
 
         if self.PARALLEL:
-            print("parralel processing")
-            dataset_list_dataframe = pdb_list_series.parallel_apply(lambda x: process_pdb(x, pdb_uniprot_mapping, datatype, domname=domname))
+            try:
+                #print("Trying parallel processing")
+                dataset_list_dataframe = pdb_list_series.parallel_apply(lambda x: process_pdb(x, pdb_uniprot_mapping, datatype, domname=domname))
+            except ValueError as e:
+                #print(e)
+                dataset_list_dataframe = pdb_list_series.progress_apply(lambda x: process_pdb(x,pdb_uniprot_mapping, datatype, domname=domname))
         else:
             dataset_list_dataframe = pdb_list_series.progress_apply(lambda x: process_pdb(x,pdb_uniprot_mapping, datatype, domname=domname))
 
@@ -509,7 +513,7 @@ class Structure(Attributes):
             returndf = pd.concat(dataset_list_dataframe)
             return returndf
         except ValueError as e:
-            print(e)
+            #print(e)
             print("no update to make, returning None")
             # TO DO: replace by pd.DataFrame() to solve crashing
             return None

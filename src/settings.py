@@ -39,7 +39,8 @@ __status__ = "Prototype"
 import os
 import sys
 import platform
-from typing import Optional
+from typing import Optional, Union, Sequence
+#from collections.abc import Sequence
 import configparser
 
 import pandas as pd
@@ -90,13 +91,13 @@ class Settings:
         except FileExistsError:
             self.FORMER_WORKING_DIR = True
 
-
         self.PEPRMINT_FOLDER = cwd
         self.SETUP = {}   # dictionary with ALL parameters
         self.define_folders()
         self.create_directories()
         self.map_cath_and_prosite()
 
+    
     def _is_notebook(self) -> bool:
         try:
             shell = get_ipython().__class__.__name__
@@ -109,6 +110,7 @@ class Settings:
         except NameError:
             return False      # probably standard Python interpreter
 
+    
     def _get_platform(self):
         # OS
         if platform.system() == "Linux":
@@ -127,6 +129,7 @@ class Settings:
         else:
             self.NOTEBOOK_HANDLE = None
 
+    
     def _run_config(self, path: Optional[str] = None):
         """ Read configuration file
         First, try to read the user configurations, either at the standard file
@@ -152,6 +155,7 @@ class Settings:
                 print("Using factory configuration, saved locally at '{0}'".format(self._DEFAULT_CONFIG_FILE))
                 self._write_default_config_file(self._DEFAULT_CONFIG_FILE)
 
+    
     def _read_config_file(self, path: str) -> bool:
         if not os.path.isfile(path):
             return False
@@ -162,6 +166,7 @@ class Settings:
         self.config_file.read(path)
         return True
 
+    
     def _write_default_config_file(self, path: str):
         self.config_file = configparser.ConfigParser(allow_no_value=True)
         self.config_file.optionxform = str
@@ -297,14 +302,10 @@ class Settings:
         self.config_file['IBS_TAGGING']['uniref_level'] = "uniref100"
         self.config_file['IBS_TAGGING']['z_axis_level'] = "0"
 
-        self.config_file['FIGURE_GENERATION'] = {}
-        
-        # not recommended setting include_alphafold_from_the_beginning to true because it is added later
-        self.config_file['FIGURE_GENERATION']['include_alphafold_from_the_beginning'] = str(False)
-
         with open(path, 'w') as configfile:
             self.config_file.write(configfile)
 
+    
     def _libs_setup(self):
         # Place any additional settings for imported libraries here
 
@@ -320,6 +321,7 @@ class Settings:
                 self.PARALLEL = False
                 self.num_threads = 1
 
+    
     def _set_active_superfamilies(self):
         self.use_PH = self.config_file.getboolean('GENERAL','include_PH')
         self.use_C2 = self.config_file.getboolean('GENERAL','include_C2')
@@ -370,6 +372,7 @@ class Settings:
         if self.use_ANNEXIN:
             self.active_superfamilies.append("ANNEXIN")
 
+    
     def define_folders(self):
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
         self.CATHFOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/"
@@ -396,6 +399,7 @@ class Settings:
         for k in self.SETUP:
             exec(f"self.{k}2 = self.SETUP['{k}']")
 
+    
     def create_directories(self):
         if not os.path.exists(self.PEPRMINT_FOLDER):
             os.makedirs(self.PEPRMINT_FOLDER)
@@ -415,7 +419,7 @@ class Settings:
         if not os.path.exists(self.REF_FOLDER):
             os.makedirs(self.REF_FOLDER)
 
-    # TO DO: move the correspondences below to the .config file?
+
     def map_cath_and_prosite(self):
         self.CATHVERSION = self.config_file['CATH']['version']
 
@@ -511,9 +515,26 @@ class Settings:
         }
 
         self._filter_active_domains(self.DOMAIN_INTERPRO_REFINE)
+        self._update_pepr2ds_setup_indices()
 
-        # Invert keys and values to have CATHID ==> DOMAIN
-        self.CATH_DOMAIN = {v: k for k, v in self.DOMAIN_CATH.items()}
+
+    def _filter_active_domains(self, d: dict):
+        # keep only the entries for the active domains
+        inactive_keys = [k for k in d.keys() if k not in self.active_superfamilies]
+        for key in inactive_keys:
+            del d[key]
+
+
+    def _update_pepr2ds_setup_indices(self):
+        # keys used by the constructors of pepr2ds.Builder and pepr2ds.Dataset
+        self.CATH_DOMAIN = {}   # inverted index cath id -> superfamily
+        for k, v in self.DOMAIN_CATH.items():
+            if type(v) == str:
+                self.CATH_DOMAIN[v] = k
+            else:
+                for entry in v:
+                    self.CATH_DOMAIN[entry] = k
+
         self.SUPERFAMILY = self.CATH_DOMAIN
         self.SETUP["DOMAIN_PROSITE"] = self.DOMAIN_PROSITE
         self.SETUP["PROSITE_DOMAIN"] = self.PROSITE_DOMAIN
@@ -521,11 +542,44 @@ class Settings:
         self.SETUP["CATH_DOMAIN"] = self.CATH_DOMAIN
         self.SETUP["SUPERFAMILY"] = self.SUPERFAMILY
 
-    # keep only the entries for the active domains
-    def _filter_active_domains(self, d: dict):
-        inactive_keys = [k for k in d.keys() if k not in self.active_superfamilies]
-        for key in inactive_keys:
-            del d[key]
 
-    # NB! function 'selectUniquePerCluster(...)' from notebook #0
-    # is redefined (and used) on notebook 02, so we are moving it
+    def add_new_superfamily(self,
+                            name: str,
+                            ref_pdb: str,   # representative for reorientation
+                            ref_res1: str,
+                            ref_res2: str,  # 3 residues for reorientation along the z axis
+                            ref_res3: str,
+                            cath_domain: Union[str, Sequence[str]],
+                            prosite_domain: Union[str, Sequence[str]],
+                            interpro_domain: Union[str, Sequence[str]],
+                            refine_AF_data_with_interpro: bool):
+        """
+        NB! None of the data structures initialized with the current Settings
+        object reflect the new superfamily added! It might suffice to execute
+        Preprocessing.run(database="cath")
+        DatasetManager.build(recalculate=True)
+        DatasetManager.fetch_alphafold_data()
+        Preprocessing.run(database="alphafold")
+        DatasetManager.build(recalculate=True)
+        DatasetManager.add_IBS_data(db="cath+af")
+        """
+        self.active_superfamilies.append(name)
+
+        self.config_file['PREPROCESSING']['ref_'+name+'_pdb'] = ref_pdb
+        self.config_file['PREPROCESSING']['ref_'+name+'_res1'] = ref_res1
+        self.config_file['PREPROCESSING']['ref_'+name+'_res2'] = ref_res2
+        self.config_file['PREPROCESSING']['ref_'+name+'_res3'] = ref_res3
+
+        self.DOMAIN_CATH[name] = cath_domain
+        self.DOMAIN_INTERPRO[name] = interpro_domain
+        self.DOMAIN_PROSITE[name] = prosite_domain
+
+        if type(prosite_domain) == str:
+            self.PROSITE_DOMAIN[prosite_domain] = name
+        else:
+            for entry in prosite_domain:
+                self.PROSITE_DOMAIN[entry] = name
+
+        self.DOMAIN_INTERPRO_REFINE[name] = refine_AF_data_with_interpro
+
+        self._update_pepr2ds_setup_indices()

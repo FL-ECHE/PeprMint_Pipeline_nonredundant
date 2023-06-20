@@ -57,6 +57,17 @@ def main():
     global_settings = Settings()   # setup reading standard configuration file
     #global_settings = Settings("/opt/cbu/my.config")  # different config file
 
+    # support to specify superfamilies not implemented by default
+    global_settings.add_new_superfamily(name = "ANNEXIN",
+                                        ref_pdb = "1a8aA01", # reference for tagging IBS
+                                        ref_res1 = "25",
+                                        ref_res2 = "68",
+                                        ref_res3 = "77",
+                                        cath_domain = "1.10.220.10",
+                                        prosite_domain = "PS00223",
+                                        interpro_domain = "SSF47874",
+                                        refine_AF_data_with_interpro = False)
+    
     # notebook #1
     #data_retriever = DataRetriever(global_settings)
     #data_retriever.fetch()
