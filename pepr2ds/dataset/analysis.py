@@ -761,27 +761,27 @@ class Analysis():
                 plt.close()
 
         def calc_summary_table(self, showTable = False):
+
             ibs = self.parent.ibs
             nonibs = self.parent.nonibs
             ibsCathPdb = ibs.query("atom_name == 'CB' and data_type != 'prosite' and convhull_vertex == True")
             nonIbsCathPdb = nonibs.query("atom_name == 'CB' and data_type != 'prosite' and convhull_vertex == True")
 
             # Hydrophobic protrusion
-            tc_HP_IBS = ibsCathPdb.is_hydrophobic_protrusion.value_counts()
-            tc_HP_nonIBS = nonIbsCathPdb.is_hydrophobic_protrusion.value_counts()
+            tc_HP_IBS = _safe_value_counts_with_bools(ibsCathPdb.is_hydrophobic_protrusion.value_counts())
+            tc_HP_nonIBS = _safe_value_counts_with_bools(nonIbsCathPdb.is_hydrophobic_protrusion.value_counts())
             percentageHPibs = tc_HP_IBS[1] / tc_HP_IBS[0] * 100
             pertentageHPnonibs = tc_HP_nonIBS[1] / tc_HP_nonIBS[0] * 100
 
             # CO-insertable
-            tc_CO_IBS = ibsCathPdb.is_co_insertable.value_counts()
-            tc_CO_nonIBS = nonIbsCathPdb.is_co_insertable.value_counts()
+            tc_CO_IBS = _safe_value_counts_with_bools(ibsCathPdb.is_co_insertable.value_counts())
+            tc_CO_nonIBS = _safe_value_counts_with_bools(nonIbsCathPdb.is_co_insertable.value_counts())
             percentageCOibs = tc_CO_IBS[1] / tc_CO_IBS[0] * 100
-
             pertentageCOnonibs = tc_CO_nonIBS[1] / tc_CO_nonIBS[0] * 100
 
             # MLIP
-            tc_LDCI_IBS = ibsCathPdb.LDCI.value_counts()
-            tc_LDCI_nonIBS = nonIbsCathPdb.LDCI.value_counts()
+            tc_LDCI_IBS = _safe_value_counts_with_bools(ibsCathPdb.LDCI.value_counts())
+            tc_LDCI_nonIBS = _safe_value_counts_with_bools(nonIbsCathPdb.LDCI.value_counts())
             percentageLDCIibs = tc_LDCI_IBS[1] / tc_LDCI_IBS[0] * 100
             try:
                 pertentageLDCInonibs = tc_LDCI_nonIBS[1] / tc_LDCI_nonIBS[0] * 100
@@ -1019,13 +1019,17 @@ class Analysis():
             NumProtIBS = len(ibsCathPdb.query(f"{var1} == True"))
             NumProtNONIBS = len(nonIbsCathPdb.query(f"{var1} == True"))
             sns.set_style(style='whitegrid')
-            tc_CI_ibs = ibsCathPdb.query(f"{var1} == True")[var2].value_counts()  # Create table count
-            tc_CI_ibs.rename(index={0: "No", 1: "Yes"}, inplace=True)
+            # TO DO: discuss proper handling of the border case where all entries are True/False
+            #tc_CI_ibs = ibsCathPdb.query(f"{var1} == True")[var2].value_counts()  # Create table count
+            #tc_CI_ibs.rename(index={0: "No", 1: "Yes"}, inplace=True)
+            tc_CI_ibs = _safe_value_counts_with_bools(ibsCathPdb.query(f"{var1} == True")[var2].value_counts())  # Create table count
             #print(tc_CI_ibs)
             fracCI_IBS = tc_CI_ibs[1] / sum(tc_CI_ibs)
 
-            tc_CI_nonIBS = nonIbsCathPdb.query(f"{var1} == True")[var2].value_counts()  # Create table count
-            tc_CI_nonIBS.rename(index={0: "No", 1: "Yes"}, inplace=True)
+            # TO DO: discuss proper handling of the border case where all entries are True/False
+            #tc_CI_nonIBS = nonIbsCathPdb.query(f"{var1} == True")[var2].value_counts()  # Create table count
+            #tc_CI_nonIBS.rename(index={0: "No", 1: "Yes"}, inplace=True)
+            tc_CI_nonIBS = _safe_value_counts_with_bools(nonIbsCathPdb.query(f"{var1} == True")[var2].value_counts())  # Create table count
             fracCI_NONIBS = tc_CI_nonIBS[1] / sum(tc_CI_nonIBS)
 
             table_oddsratio = [[tc_CI_ibs[1], tc_CI_ibs[0]],
@@ -1037,16 +1041,30 @@ class Analysis():
             oddsratioDf.index = pd.MultiIndex.from_product([["IBS"], ['yes', 'no']])
 
             oddsratio, pvalue = fisher_exact(table_oddsratio)
+            flag_null = (oddsratio == 0)
+
             # Edvin's formula
             Rab = (fracCI_IBS * (1 - fracCI_NONIBS)) / (fracCI_NONIBS * (1 - fracCI_IBS))
 
             # oddsratio = math.log(oddsratio)
-            # Standart deviation
-            se = (1 / table_oddsratio[0][0] + 1 / table_oddsratio[0][1] + 1 / table_oddsratio[1][0] + 1 /
-                  table_oddsratio[1][1]) ** 0.5
+            # Standard deviation
+            # TO DO: discuss proper handling of null odds ratio
+            ###
+            stddev_summands = [table_oddsratio[0][0], 
+                               table_oddsratio[0][1],
+                               table_oddsratio[1][0],
+                               table_oddsratio[1][1]]
+            se = sum([1/x for x in stddev_summands if x != 0])**0.5
+            #se = (1 / table_oddsratio[0][0] + 1 / table_oddsratio[0][1] + 1 / table_oddsratio[1][0] + 1 /
+            #      table_oddsratio[1][1]) ** 0.5
+
             # Confidance Interval at 95% Wald, z=1.96
-            lower_CI = math.exp(math.log(oddsratio) - 1.96 * se)
-            upper_CI = math.exp(math.log(oddsratio) + 1.96 * se)
+            if not flag_null:
+                lower_CI = math.exp(math.log(oddsratio) - 1.96 * se)
+                upper_CI = math.exp(math.log(oddsratio) + 1.96 * se)
+            else:
+                lower_CI = np.NaN
+                upper_CI = np.NaN
 
             if output == 'standard':
                 print("")
@@ -1056,23 +1074,31 @@ class Analysis():
                 print(f"Variable 2: {var2}")
                 print("...................")
                 display(HTML(oddsratioDf.to_html()))
-
                 print("-------")
-                print(f"Oddratio = {oddsratio} - LOG -> {np.log(oddsratio):.2f}")
-                print(f"Pvalue = {pvalue} (fisher)")
-                print(f"Incertitude = {abs(oddsratio - lower_CI)} (fisher) - LOG -> {abs(np.log(oddsratio) - np.log(lower_CI)):.2f}")
-                print(f"Standart deviation = {se:.2f} - LOG -> {np.log(se):.2f}")
+                if not flag_null:
+                    print(f"Oddratio = {oddsratio} - LOG -> {np.log(oddsratio):.2f}")
+                    print(f"Pvalue = {pvalue} (fisher)")
+                    print(f"Uncertainty = {abs(oddsratio - lower_CI)} (fisher) - LOG -> {abs(np.log(oddsratio) - np.log(lower_CI)):.2f}")
+                    print(f"Standard deviation = {se:.2f} - LOG -> {np.log(se):.2f}")
 
-                print(f"Confidance Interval at 95% (Wald) {lower_CI:.2f}, {upper_CI:.2f}")
-                print("-------")
-                if 1 < lower_CI:
-                    print(colored(">> 1 lower than lower confidance intervale, result is statistically relevant.",
-                                  "green"))
-                    print(f">> {var1} are {oddsratio:.2f} times more likely to be {var2} on IBS than non-IBS")
+                    print(f"Confidance Interval at 95% (Wald) {lower_CI:.2f}, {upper_CI:.2f}")
+                    print("-------")
+                    if 1 < lower_CI:
+                        print(colored(">> 1 lower than lower confidence interval, result is statistically relevant.",
+                                      "green"))
+                        print(f">> {var1} are {oddsratio:.2f} times more likely to be {var2} on IBS than non-IBS")
+                    else:
+                        print(colored(">> 1 in confidence interval, result IS NOT statistically relevant.", "red"))
+                        print(f"{var1} are {oddsratio:.2f} times more likely to be {var2} on IBS than non-IBS")
+                    return (oddsratio, lower_CI, upper_CI)
                 else:
-                    print(colored(">> 1 in confidance intervale, result IS NOT statistically relevant.", "red"))
-                    print(f"{var1} are {oddsratio:.2f} times more likely to be {var2} on IBS than non-IBS")
-                return (oddsratio, lower_CI, upper_CI)
+                    print("* Warning: the Fisher exact test returned an odds ratio of zero")
+                    print("*          ignore confidence intervals and statistical relevance")
+                    print(f"Oddratio = {oddsratio} - LOG -> {np.NaN}")
+                    print(f"Pvalue = {pvalue} (fisher)")
+                    print("-------")
+                    return (oddsratio, np.NaN, np.NaN)
+
 
             elif output == "html":
                 HTMLstring = f"""
@@ -1083,29 +1109,40 @@ class Analysis():
                 {self.span('Variable 1', 'black', 'bold')}: {var1}<br />
                 {self.span('Variable 2', 'black', 'bold')}: {var2}<br />
                 {oddsratioDf.to_html()}
-                <ul>
-                <li>OddRatio = {oddsratio:.2}</li>
-                <li>Pvalue = {pvalue:.2} (fisher)</li>
-                <li>Standart deviation = {se:.2f}</li>
-                <li>Confidance Interval at 95% (Wald) {lower_CI:.2f}, {upper_CI:.2f}</li>
-                <br />"""
-                if 1 < lower_CI:
-                    HTMLstring += self.span(
-                        ">> 1 lower than lower confidance intervale, result is statistically relevant",
-                        "green") + ".<br />"
-                    HTMLstring += f">> {var1} are " + self.span(f"{oddsratio:.2f}", "black",
-                                                                "bold") + f" times more likely to be {var2} on IBS than non-IBS<br />"
+                """
+                if not flag_null:
+                    HTMLstring += f"""
+                    <ul>
+                    <li>OddRatio = {oddsratio:.2}</li>
+                    <li>Pvalue = {pvalue:.2} (fisher)</li>
+                    <li>Standard deviation = {se:.2f}</li>
+                    <li>Confidance Interval at 95% (Wald) {lower_CI:.2f}, {upper_CI:.2f}</li>
+                    <br />
+                    """
+                    if 1 < lower_CI:
+                        HTMLstring += self.span(
+                            ">> 1 lower than lower confidence interval, result is statistically relevant",
+                            "green") + ".<br />"
+                        HTMLstring += f">> {var1} are " + self.span(f"{oddsratio:.2f}", "black",
+                                                                    "bold") + f" times more likely to be {var2} on IBS than non-IBS<br />"
+                    else:
+                        HTMLstring += self.span(">> 1 is in the confidence interval, result is NOT statistically relevant",
+                                                "red", "bold") + ".<br />"
+                        HTMLstring += f">> {var1} are " + self.span(f"{oddsratio:.2f}", "black",
+                                                                    "bold") + f" times more likely to be {var2} on IBS than non-IBS<br />"
+                    HTMLstring += "</p></div>"
+                    # display(HTML(HTMLstring))
+                    return (oddsratio, lower_CI, upper_CI, HTMLstring)
                 else:
-                    HTMLstring += self.span(">> 1 is in the confidance intervale, result is NOT statistically relevant",
+                    HTMLstring += f"""
+                    <ul>
+                    <li>OddRatio = {oddsratio:.2}</li>
+                    <li>Pvalue = {pvalue:.2} (fisher)</li>
+                    <br />
+                    """
+                    HTMLstring += self.span("The Fisher exact test returned an odds ratio of zero, cannot determine confidence intervals and statistical relevance",
                                             "red", "bold") + ".<br />"
-                    HTMLstring += f">> {var1} are " + self.span(f"{oddsratio:.2f}", "black",
-                                                                "bold") + f" times more likely to be {var2} on IBS than non-IBS<br />"
-
-                HTMLstring += "</p></div>"
-
-                # display(HTML(HTMLstring))
-
-                return (oddsratio, lower_CI, upper_CI, HTMLstring)
+                    return (oddsratio, np.NaN, np.NaN, HTMLstring)
 
         def span(self, string, color, style="standard"):
             cdict = {"red": "#FF0000",
@@ -1163,7 +1200,9 @@ class Analysis():
                 test.rename("hydrophobic_protrusions", inplace=True)
 
 
-            test = test/test.sum(level=0)
+            # NB! FutureWarning: Using the level keyword in DataFrame and Series aggregations is deprecated and will be removed in a future version. Use groupby instead. df.sum(level=1) should use df.groupby(level=1).sum().
+            #test = test/test.sum(level=0)
+            test = test/(test.groupby(level=0).sum())
             dataGraph = test.to_frame()
             # dataGraph = dfGraph.groupby("Localisation").apply(
             #     lambda x: (x.hydrophobic_protrusions.value_counts() \
@@ -1696,7 +1735,9 @@ class Analysis():
                                                                                                              exclude_protrusion,
                                                                                                              ))
 
-                    tableCount = r.sum(axis=0, level=[1, 2])
+                    # NB! FutureWarning: Using the level keyword in DataFrame and Series aggregations is deprecated and will be removed in a future version. Use groupby instead. df.sum(level=1) should use df.groupby(level=1).sum().
+                    #tableCount = r.sum(axis=0, level=[1, 2])
+                    tableCount = r.groupby(axis=0, level=[1, 2]).sum()
 
                     index_l1 = tableCount.index.get_level_values(1).unique().tolist()
 
@@ -1819,8 +1860,11 @@ class Analysis():
                 ylabel = "Frequency"
 
             colors = sns.color_palette("hls", len(tableHP))
-            sns.barplot(x=tableCI.index, y=tableCI, ax=ax0, palette=colors)
-            sns.barplot(x=tableHP.index, y=tableHP, ax=ax1, palette=colors)
+            # TO DO: discuss proper handling of the border case where some of these is null
+            if (len(tableCI) > 0):
+                sns.barplot(x=tableCI.index, y=tableCI, ax=ax0, palette=colors)
+            if (len(tableHP) > 0):
+                sns.barplot(x=tableHP.index, y=tableHP, ax=ax1, palette=colors)
 
             ax0.set(xlabel="loop", ylabel=ylabel, title="Where are the co-insertables ?", ylim=(0, maxValue))
             ax1.set(xlabel="loop", ylabel=ylabel, title="Where are the hydrophobic protrusions ?", ylim=(0, maxValue))
@@ -1829,3 +1873,18 @@ class Analysis():
                 fig.tight_layout()
                 plt.show()
                 plt.close()
+
+# TO DO: discuss proper handling of the border case where all entries are True/False
+def _safe_value_counts_with_bools(d):
+    """ 
+        Useful to proxy the pandas series returned by value_counts()
+        with "False" and "True" keys (mapping to 0) when they are missing
+    """
+    safe_dict = {}
+    for k in d.keys():
+        safe_dict[k] = d[k]
+    if False not in d.keys():
+        safe_dict[False] = 0
+    if True not in d.keys():
+        safe_dict[True] = 0
+    return safe_dict

@@ -75,15 +75,13 @@ class Dataset():
 
         self.domainDf = pd.read_pickle(f"{path}/{name}.pkl")
         self.domainLabel = "+".join(self.domainDf.domain.unique())
-        #self.ibs      = pd.read_pickle(f"{path}/{name}_ibs.pkl")
-        #self.nonibs   = pd.read_pickle(f"{path}/{name}_nonibs.pkl")
+
 
     def save_dataset(self, name, path=None):
         if path == None:
             path = f"{self.PEPRMINT_FOLDER}/dataset"
         self.domainDf.to_pickle(f"{path}/{name}.pkl")
-        #self.ibs.to_pickle(f"{path}/{name}_ibs.pkl")
-        #self.nonibs.to_pickle(f"{path}/{name}_nonibs.pkl")
+
 
 
     #############
@@ -170,18 +168,23 @@ class Dataset():
 
         if data_type == 'cath':
             df = df.query("data_type == 'cathpdb'")
-        elif data_type == 'alphafold':
-            df = df.query("data_type == 'alphafold'")
+        elif data_type == 'alfafold':
+            df = df.query("data_type == 'alfafold'")
         elif data_type == 'cath+af':
-            df = df.query("data_type in ['cathpdb','alphafold']")
+            df = df.query("data_type in ['cathpdb','alfafold']")
 
 
         df["matchIndex"] = list(range(len(df)))
 
-        if domain == 'SH2':
-            # TO DO: get excel sheet to clean SH2 superfamily with CHO data
-            sh2_cho = f"{self.PEPRMINT_FOLDER}/databases/Cho_SH2_transformed.xlsx"
+        #If SH2, clean with CHO data
 
+        from sys import platform
+        if platform == "linux" or platform == "linux2":
+            sh2_cho = "/mnt/g/clouds/OneDrive - University of Bergen/projects/peprmint/data/Cho_SH2_transformed.xlsx"
+        else:
+            sh2_cho = "/Users/thibault/OneDrive - University of Bergen/projects/peprmint/data/Cho_SH2_transformed.xlsx"
+
+        if domain == 'SH2':
             cho = pd.read_excel(
                 sh2_cho,
             engine='openpyxl').dropna(subset=["Range"])
@@ -248,7 +251,7 @@ class Dataset():
 
             if not coordinates_folder_name is None:
                 if base_folder == 'cath':
-                    base_folder = f"{self.CATHFOLDER}domains"
+                    base_folder = f"{self.CATHFOLDER}/domains"
                 else:
                     base_folder = f"{self.PEPRMINT_FOLDER}/databases/{base_folder}"
 
@@ -269,7 +272,6 @@ class Dataset():
                         if not os.path.isfile(f"{coordinates_folder}/{pdb}.pdb"):
                             return None
                         pl1 = PandasPdb().read_pdb(f"{coordinates_folder}/{pdb}.pdb").df["ATOM"]
-
                         # When sometimes we remove duplicated residues we have to be sure that we update
                         # the residues list we take from the new coordinates files
                         residues_number_list = group.residue_name.unique()
@@ -321,7 +323,7 @@ class Dataset():
 
         if "LDCI" not in df.columns:
             if not silent:
-                print("tagging MLIP")
+                print("taggin MLIP")
             if not silent:
                 df = df.groupby("cathpdb").progress_apply(tag_MLIP)
             else:
@@ -331,7 +333,7 @@ class Dataset():
 
 
         if not silent:
-            print("tagging IBS")
+            print("taggin IBS")
             ibs_nonibs = df.groupby('cathpdb').progress_apply(
                 lambda x: self.get_ibs_and_non_ibs(x, extendSS, onlyC, excludeStrand,extendCoilOnly))
         else:
@@ -379,13 +381,13 @@ class Dataset():
             raise ValueError('CathCluster given not in ["S35","S60","S95","S100"]')
 
         if Uniref not in ["uniref50", "uniref90", "uniref100"]:
-            raise ValueError('Uniref given not in ["uniref50","uniref90","uniref100"]')
+            raise ValueError('CathCluster given not in ["uniref50","uniref90","uniref100"]')
 
         if withAlignment:
             df = df[~df.alignment_position.isnull()]
 
         cathdf = df.query("data_type == 'cathpdb'")
-        seqdf = df.query("data_type == 'prosite' or data_type == 'alphafold'")
+        seqdf = df.query("data_type == 'prosite' or data_type == 'alfafold'")
 
         def selectUniqueCath(group):
             uniqueNames = group.cathpdb.unique()
@@ -543,8 +545,7 @@ class Dataset():
         with warnings.catch_warnings():
             warnings.simplefilter('ignore', PDBConstructionWarning)
             structure = parser.get_structure(id=idpdb,
-                                             file=f"{self.PEPRMINT_FOLDER}/databases/cath/domains/{self.domainLabel}/{folder}/{idpdb}.pdb")
-
+                                             file=f"/Users/thibault/Documents/WORK/peprmint/databases/cath/domains/{self.domainLabel}/{folder}/{idpdb}.pdb")
 
 
         view = nv.show_biopython(structure)

@@ -38,10 +38,8 @@ class Structure(Attributes):
             self.tnrange = tnrange
             self.tqdm.pandas()  # activate tqdm progressbar for pandas apply
         else:
-            #print("notebook = False")
+            print("notebook = False")
             from tqdm import tnrange, tqdm
-            self.tqdm = tqdm
-            self.tnrange = tnrange
             self.tqdm.pandas()  # activate tqdm progressbar for pandas apply
 
 
@@ -448,14 +446,14 @@ class Structure(Attributes):
                 except:
                     uniprot_acc = None
 
-            elif datatype == 'alphafold':
+            elif datatype == 'alfafold':
                 pdbname = splittedPath[-1]
                 domain = splittedPath[-3]
                 cathpdbcode = pdbname.split(".")[0]
                 pdbcode = pdbname
                 chain = "A"
                 uniprot_acc = cathpdbcode
-                data_type = 'alphafold'
+                data_type = 'alfafold'
 
             elif datatype == 'custom':
                 pdbname = splittedPath[-1]
@@ -496,12 +494,8 @@ class Structure(Attributes):
         pdb_list_series = pd.Series(pdblist)
 
         if self.PARALLEL:
-            try:
-                #print("Trying parallel processing")
-                dataset_list_dataframe = pdb_list_series.parallel_apply(lambda x: process_pdb(x, pdb_uniprot_mapping, datatype, domname=domname))
-            except ValueError as e:
-                #print(e)
-                dataset_list_dataframe = pdb_list_series.progress_apply(lambda x: process_pdb(x,pdb_uniprot_mapping, datatype, domname=domname))
+            print("parralel processing")
+            dataset_list_dataframe = pdb_list_series.parallel_apply(lambda x: process_pdb(x, pdb_uniprot_mapping, datatype, domname=domname))
         else:
             dataset_list_dataframe = pdb_list_series.progress_apply(lambda x: process_pdb(x,pdb_uniprot_mapping, datatype, domname=domname))
 
@@ -513,14 +507,13 @@ class Structure(Attributes):
             returndf = pd.concat(dataset_list_dataframe)
             return returndf
         except ValueError as e:
-            #print(e)
+            print(e)
             print("no update to make, returning None")
-            # TO DO: replace by pd.DataFrame() to solve crashing
             return None
 
 
     def add_experimental_method(self, DATASET):
-        print("Fetching experimental method from PDBe")
+        print("fetching experimental method from PDBe")
 
         pdb_list = [x.lower() for x in DATASET.pdb.unique()]
 
@@ -562,9 +555,9 @@ class Structure(Attributes):
             return None
 
         pdblist = [str(x) for x in Path(self.CATHFOLDER).glob("domains/**/raw/*.pdb")]
-        pdblist_alphafold = ([str(x) for x in Path(self.ALPHAFOLDFOLDER).glob("**/extracted/*.pdb")])  # impl:AFS
+        pdblist_alfafold = ([str(x) for x in Path(self.ALFAFOLDFOLDER).glob("**/extracted/*.pdb")])  # impl:AFS
 
-        allpdbs = pdblist + pdblist_alphafold
+        allpdbs = pdblist + pdblist_alfafold
 
         for pdb in self.tqdm(allpdbs, desc='cleaning'):
             self.clean_pdb(pdb)
@@ -574,23 +567,20 @@ class Structure(Attributes):
 
     def build_structural_dataset(self, checkpoint_name = "checkpoint_structure"):
         updatemode = False
-        recalculating = True
 
         if not self.RECALCULATE:
             if os.path.exists(f"{self.WORKDIR}/{checkpoint_name}.pkl"):
                 print("> Reading checkpoint 1")
                 DATASET = pd.read_pickle(f"{self.WORKDIR}/checkpoint_structure.pkl")
-                recalculating = False
             else:
                 print("> no checkpoint file, recalculating")
-                recalculating = True
 
-        if recalculating:
+        else:
 
 
 
             pdblist = [str(x) for x in Path(self.CATHFOLDER).glob("domains/**/cleaned/*.pdb")]
-            pdblist_alphafold = ([str(x) for x in Path(self.ALPHAFOLDFOLDER).glob("**/extracted/*.pdb")]) #impl:AFS
+            pdblist_alfafold = ([str(x) for x in Path(self.ALFAFOLDFOLDER).glob("**/extracted/*.pdb")]) #impl:AFS
 
             if self.UPDATE and os.path.isfile(f"{self.WORKDIR}/checkpoint_structure.pkl"):
                 print("update mode, loading checkpoint backup file")
@@ -624,16 +614,16 @@ class Structure(Attributes):
 
 
 
-                print("removing duplicated pdbs (ALPHAFOLD)")
-                beforesize = len(pdblist_alphafold)
-                pdblist_alphafold = remove_duplicated_element(pdb_already_in_db, pdblist_alphafold)
-                print(f"        {beforesize - (len(pdblist_alphafold)-beforesize)} new pdbs")
+                print("removing duplicated pdbs (ALFAFOLD)")
+                beforesize = len(pdblist_alfafold)
+                pdblist_alfafold = remove_duplicated_element(pdb_already_in_db, pdblist_alfafold)
+                print(f"        {beforesize - (len(pdblist_alfafold)-beforesize)} new pdbs")
                 updatemode = True
 
 
-            #Process alphafold structures
-            print(".. Processing alphafold structures ..")
-            DATASET_AF = self.process_pdb_list(pdblist_alphafold, datatype='alphafold')
+            #Process alfafold structures
+            print(".. Processing alfafold structures ..")
+            DATASET_AF = self.process_pdb_list(pdblist_alfafold, datatype='alfafold')
 
             #process cath structures
             print(".. Processing cath structures ..")
@@ -653,8 +643,8 @@ class Structure(Attributes):
 
             #DATASET["data_type"] = "cathpdb"
             if len(self.ERRORS) > 0:
-                print(f"Warning: total of PDBs not processed: {len(self.ERRORS)}")
-                print(f"         - check 'ERRORS' list in {self.PEPRMINT_FOLDER}/pdb_processing_errors.log")
+                print(f"{len(self.ERRORS)} pdbs wasn't processed. Check 'ERRORS' list.")
+                print(f"in {self.PEPRMINT_FOLDER}/pdb_processing_errors.log")
                 with open(f"{self.PEPRMINT_FOLDER}/pdb_processing_errors.log",'w') as errorlog:
                     for pdb in self.ERRORS:
                         errorlog.write(pdb+'\n')
@@ -692,7 +682,7 @@ class Structure(Attributes):
             DATASET (pandas.DataFrame): Dataset news properties as columns
 
         """
-        print("... Computing protrusions .. ")
+        print("... Conputing protrusions .. ")
 
         def calc_protrusions_on_group(
                 pdbdata,
@@ -917,8 +907,8 @@ class Structure(Attributes):
             ["cathpdb", "S35", "S60", "S95", "S100", "S100Count", "resolution"]
         ]
 
-        # Merging with the previous dataset, on cathPDB.
+        # Mergin with the previous dataset, on cathPDB.
         DATASET_cath= pd.merge(DATASET, cathDomains, on="cathpdb")
-        DATASET_af = DATASET.query("data_type == 'alphafold'")
+        DATASET_af = DATASET.query("data_type == 'alfafold'")
         DATASET = pd.concat([DATASET_cath, DATASET_af])
         return DATASET

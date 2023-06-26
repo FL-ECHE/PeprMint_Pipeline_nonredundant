@@ -25,7 +25,7 @@ class Attributes():
             from tqdm.notebook import tnrange, tqdm
             tqdm.pandas()  # activate tqdm progressbar for pandas apply
         else:
-            #print("notebook = False")
+            print("notebook = False")
             from tqdm import tnrange, tqdm
             tqdm.pandas()  # activate tqdm progressbar for pandas apply
 
@@ -56,7 +56,7 @@ class Attributes():
         self.PEPRMINT_FOLDER = peprmint_folder
         self.WORKDIR = f"{self.PEPRMINT_FOLDER}/dataset/"
         self.CATHFOLDER = f"{self.PEPRMINT_FOLDER}/databases/cath/"
-        self.ALPHAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alphafold/"
+        self.ALFAFOLDFOLDER = f"{self.PEPRMINT_FOLDER}/databases/alfafold/"
         self.PROSITEFOLDER = f"{self.PEPRMINT_FOLDER}/databases/prosite/"
         self.UNIPROTFOLDER = f"{self.PEPRMINT_FOLDER}/databases/uniprot/"
         self.FIGURESFOLDER = f"{self.PEPRMINT_FOLDER}/figures/"

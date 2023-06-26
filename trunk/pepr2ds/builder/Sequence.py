@@ -1,5 +1,4 @@
 from .Attributes import Attributes
-from .Uniprot import *
 
 import pandas as pd
 import numpy as np
@@ -25,23 +24,43 @@ class Sequence(Attributes):
             self.tnrange = tnrange
             self.tqdm.pandas()  # activate tqdm progressbar for pandas apply
         else:
-            #print("notebook = False")
+            print("notebook = False")
             from tqdm import tnrange, tqdm
-            self.tqdm = tqdm
-            self.tnrange = tnrange
             self.tqdm.pandas()  # activate tqdm progressbar for pandas apply
 
     def add_uniprotId_Origin(self, DATASET):
         def get_uniprotID_from_ACC(uniprot_accs):
-            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", 
-                                       to_db = "UniProtKB", 
-                                       ids = uniprot_accs)
-            
-            if check_id_mapping_results_ready(job_id):
-                link = get_id_mapping_results_link(job_id)
-                results = get_id_mapping_results_search(link)
-                mapping= {x["from"] : x["to"]["uniProtkbId"] for x in results["results"]}
-                return mapping
+            """
+            Search in uniprot for GENEID from uniprot_acc :
+            args:
+                pdbs <list> : list of all pdb names
+            return:
+                mapping <dict> : mapping of {pdb:uniprot}
+            """
+            url = "https://www.uniprot.org/uploadlists/"
+
+            params = {
+                "from": "ACC",
+                "to": "ID",
+                "format": "tab",
+                "query": ",".join(uniprot_accs),
+            }
+            data = urllib.parse.urlencode(params)
+            data = data.encode("utf-8")
+            req = urllib.request.Request(url, data)
+            with urllib.request.urlopen(req) as f:
+                response = f.read()
+
+            # Yes I know... not understandable, but since "response" is a binary text of the results, this is just
+            # to convert the result in a dictionnary... :-)
+            mapping = {}
+
+            twoByTwo = list(zip(*[iter(response.decode("utf-8").split()[2:])] * 2))
+
+            for uniprot, gene in twoByTwo:
+                mapping[uniprot] = gene
+
+            return mapping
 
         DATASET.fillna(np.NaN, inplace=True)  # replace nan properly
         uniprot_accs = DATASET.uniprot_acc.unique()
@@ -55,17 +74,42 @@ class Sequence(Attributes):
         return DATASET
 
     def add_cluster_info(self, DATASET):
-        def get_unirefID(uniprotAccs, to="UniRef90"):
-            job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", 
-                                       to_db = to,
-                                       ids = uniprotAccs)
-            
-            if check_id_mapping_results_ready(job_id):
-                link = get_id_mapping_results_link(job_id)
-                results = get_id_mapping_results_search(link)
-                #print(results["results"][1:2]) Uncomment if you want to see the format
-                mapping= {x["from"] : x["to"]["representativeMember"]["accessions"][0] for x in results["results"]}
-                return mapping
+        def get_unirefID(uniprotAccs, to="NF90"):
+            """
+            Search in uniprot for GENEID from uniprot_acc :
+            database identification
+            https://www.uniprot.org/help/api_idmapping
+            args:
+                pdbs <list> : list of all pdb names
+            return:
+                mapping <dict> : mapping of {pdb:uniprot}
+            """
+            url = "https://www.uniprot.org/uploadlists/"
+
+            params = {
+                "from": "ACC+ID",
+                "to": to,
+                "format": "tab",
+                "query": ",".join(uniprotAccs),
+            }
+            data = urllib.parse.urlencode(params)
+            data = data.encode("utf-8")
+            req = urllib.request.Request(url, data)
+            with urllib.request.urlopen(req) as f:
+                response = f.read()
+
+            # Yes I know... not understandable, but since "response" is a binary text of the results, this is just
+            # to convert the result in a dictionnary... :-)
+            mapping = {}
+
+            twoByTwo = list(zip(*[iter(response.decode("utf-8").split()[2:])] * 2))
+
+            for uniprot, uniref in twoByTwo:
+                mapping[uniprot] = uniref.split('_')[1]
+
+
+
+            return mapping
 
         def try_fetch_database(uniprotaccs, db, iteration=0):
             import time
@@ -82,14 +126,14 @@ class Sequence(Attributes):
                 else:
                     print("Too many tries... Try again later... Maybe use a VPN (UiB or another one)")
                     raise
-        
+
         uniprotaccs = DATASET.uniprot_acc.dropna().unique()
         uniprotaccs = uniprotaccs[np.logical_not(uniprotaccs == np.nan)]
         # print("> Database queries, if fail, start again later")
 
-        uniref50 = try_fetch_database(uniprotaccs, "UniRef50")
-        uniref90 = try_fetch_database(uniprotaccs, "UniRef90")
-        uniref100 = try_fetch_database(uniprotaccs, "UniRef100")
+        uniref50 = try_fetch_database(uniprotaccs, "NF50")
+        uniref90 = try_fetch_database(uniprotaccs, "NF90")
+        uniref100 = try_fetch_database(uniprotaccs, "NF100")
 
         print("> mapping with dataset")
         DATASET["uniref50"] = DATASET["uniprot_acc"].apply(
@@ -614,7 +658,7 @@ class Sequence(Attributes):
         On uniprot xml page you can have a lot of information that we can add on our dataset later on.
 
         Returns:
-            None, it's just to download data
+            None, it's just to download datas
         """
         #Get all differents uniprot ids
         uniprot_ids = DATASET.uniprot_id.dropna().unique()
@@ -639,24 +683,6 @@ class Sequence(Attributes):
 
         print(f"> {downloaded} new files downloaded and {exists} will be reused.")
 
-
-    def download_uniprot_data_REST(self, DATASET):
-        """
-        Alternative method to download Uniprot xml files using the new REST API
-        Should be much faster than making individual HTTP requests
-        """
-        uniprot_ids = DATASET.uniprot_id.dropna().unique()
-        
-        job_id = submit_id_mapping(from_db = "UniProtKB_AC-ID", 
-                                   to_db = "UniProtKB", 
-                                   ids = uniprot_ids)
-        
-        if check_id_mapping_results_ready(job_id):
-            link = get_id_mapping_results_link(job_id)
-            results = get_id_mapping_results_search(link, get_format="xml")
-            write_xml_results(results, self.UNIPROTFOLDER)
-
-        # TO DO: handle download failure
 
 
     def add_info_from_uniprot(self, DATASET):

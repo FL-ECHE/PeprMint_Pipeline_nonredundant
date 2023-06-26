@@ -1,0 +1,6 @@
+data/
+original-notebooks/
+trunk/.ipynb_checkpoints/
+trunk/notebooks/.ipynb_checkpoints/
+__pycache__/
+.ipynb_checkpoints/

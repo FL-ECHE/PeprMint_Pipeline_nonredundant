@@ -1,4 +1,4 @@
-name: peprmint
+name: peprmint-dev
 channels: 
 - conda-forge 
 - salilab 
@@ -7,9 +7,6 @@ channels:
 - speleo3
 dependencies:
 - python=3.7
-- pytest
-- main::boost
-- main::libboost
 - seaborn
 - pandas
 - biopandas
@@ -35,7 +32,6 @@ dependencies:
 - pymol-open-source
 - tmalign
 - voila
-- configparser
 - pip:
   - pbxplore 
   - freesasa 
