@@ -40,7 +40,20 @@ class Sequence(Attributes):
             if check_id_mapping_results_ready(job_id):
                 link = get_id_mapping_results_link(job_id)
                 results = get_id_mapping_results_search(link)
-                mapping= {x["from"] : x["to"]["uniProtkbId"] for x in results["results"]}
+
+                # the previous line below was giving a key missing ("to") error sometimes, so now we check in advance
+                # mapping= {x["from"] : x["to"]["uniProtkbId"] for x in results["results"]}
+                mapping = {}
+                entries_missing = 0
+                for x in results["results"]:
+                    if "to" not in x.keys():
+                        ++entries_missing
+                    else:
+                        mapping[x["from"]] = x["to"]["uniProtkbId"]
+
+                if entries_missing > 0:
+                    print(f"Warning: {entries_missing} unirefID accessions missing from '{to}'")
+
                 return mapping
 
         DATASET.fillna(np.NaN, inplace=True)  # replace nan properly
@@ -63,8 +76,21 @@ class Sequence(Attributes):
             if check_id_mapping_results_ready(job_id):
                 link = get_id_mapping_results_link(job_id)
                 results = get_id_mapping_results_search(link)
-                #print(results["results"][1:2]) Uncomment if you want to see the format
-                mapping= {x["from"] : x["to"]["representativeMember"]["accessions"][0] for x in results["results"]}
+                #print(results["results"][1:2]) #Uncomment if you want to see the format
+                
+                # the previous line below was giving a key missing ("to") error sometimes, so now we check in advance
+                #mapping= {x["from"] : x["to"]["representativeMember"]["accessions"][0] for x in results["results"]}
+                mapping = {}
+                entries_missing = 0
+                for x in results["results"]:
+                    if "to" not in x.keys():
+                        ++entries_missing
+                    else:
+                        mapping[x["from"]] = x["to"]["representativeMember"]["accessions"][0]
+
+                if entries_missing > 0:
+                    print(f"Warning: {entries_missing} unirefID accessions missing from '{to}'")
+                
                 return mapping
 
         def try_fetch_database(uniprotaccs, db, iteration=0):

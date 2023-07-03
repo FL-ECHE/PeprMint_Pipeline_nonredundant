@@ -44,22 +44,25 @@ import numpy as np
 import vg
 from tqdm import trange, tqdm
 
+import warnings
 from Bio import PDB
 from Bio.PDB import PDBParser
 from Bio.PDB import PDBIO
 from Bio.PDB.PDBExceptions import PDBConstructionWarning
+from Bio import BiopythonWarning
 
 import os
 import stat
 from pathlib import Path
 import glob
 import subprocess
-import warnings
 
 import shutil
 import urllib
+from joblib import Parallel, delayed
 
 from src.settings import Settings
+
 
 class Preprocessing:
 
@@ -78,7 +81,7 @@ class Preprocessing:
         self.superposed_folder = "superposed"   # used only when overwrite_mode == False
         self.aligned_folder = self.settings.ALIGNED_SUBDIR   # used only when overwrite_mode == False
 
-    def run(self, database: str, verbose=False) -> bool:
+    def run(self, database: str, verbose=False, use_cath_superpose=False) -> bool:
         """
         Proxy method for running the superposition over downloaded PDBs 
         (cath-superpose external tool, with built-in SSAP for all-vs-all 
@@ -95,21 +98,124 @@ class Preprocessing:
             print(f"  Please use either 'cath' or 'alphafold'")
             return False
         
-        print(f"> Superposing downloaded PDBs with cath-superpose and SSAP alignments")
+        if use_cath_superpose:
+            print(f"> Superposing downloaded PDBs with cath-superpose and SSAP alignments")
 
-        if not self._fetch_cath_superpose_binary():
-            return False
+            if not self._fetch_cath_superpose_binary():
+                return False
+            if not self._run_cath_superpose(verbose):
+                return False
+        else:
+            print(f"> Superposing downloaded PDBs with TM-align")
 
-        # TO DO: consider adding an option to avoid overwriting downloaded PDBs with superimposed ones
-        if not self._run_cath_superpose(verbose):
-            return False
+            self._run_tmalign_superpose(verbose)
+            self._fix_tmalign_pdbs(verbose)
 
         print(f"> Orienting superposed PDBs along z axis with respect to the domain representative")
         return self._orient_on_z_axis(verbose)
 
 
     ############################################################################
-    # superpose-related methods below
+    # superpose-related methods below (DEFAULT OPTION USING TM-ALIGN)
+
+    def _run_tmalign_superpose(self, verbose=False):
+        exec_list = []
+        for domain in self.settings.active_superfamilies:
+
+            # get path to the representative structure in this superfamily
+            ref_pdb = self.settings.config_file['PREPROCESSING']["ref_"+domain+"_pdb"]
+            if ref_pdb is None:
+                print(f"  Warning: no reference protein for '{domain}' defined on .config file - skipping superposition")
+                continue
+            ref_pdb_path = self.settings.REF_FOLDER + ref_pdb + ".pdb"
+            copy_of_ref = self.cwd_prefix + domain + self.cwd_suffix + "/" + ref_pdb + ".pdb" 
+
+            # create output folders
+            output_dir = self.cwd_prefix + domain + '/' + self.superposed_folder
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+
+            # prepare string containing command (executed triggered at the end)
+            filelist = Path(self.cwd_prefix).glob(f"{domain}{self.cwd_suffix}/*.pdb")
+            #filelist.remove(copy_of_ref) # TO DO: no need to bother, right!?
+            for f in filelist:
+                out_name = output_dir + "/" + os.path.basename(f)
+                tmp_name = str(f) + "2" # temporary files only; removed next
+                cmd = ""
+                cmd += "TMalign " + str(f) + " " + ref_pdb_path + " -o " + tmp_name + " ; "
+                cmd += "rm -rf " + tmp_name + " ; "
+                cmd += "rm -rf " + tmp_name + "_all" + " ; "
+                cmd += "rm -rf " + tmp_name + "_atm" + " ; "
+                cmd += "rm -rf " + tmp_name + "_all_atm_lig" + " ; "
+                cmd += "mv " + tmp_name + "_all_atm" + " " + out_name
+                exec_list.append(cmd)
+
+        # joblib 'Parallel' documentation: "-1 all CPUs are used"
+        Parallel(n_jobs=-1)(delayed(self.__exec_single_cmd)(job) for job in exec_list)
+
+    def __exec_single_cmd(self, exec_cmd):
+        about = subprocess.run(exec_cmd, shell=True, capture_output=True)
+        """
+        # if debugging
+        print("done executing:")
+        x = str(about.args)
+        print(x)
+        print("return code is:")
+        x = int(about.returncode)
+        print(str(x))
+        print("stdout is:")
+        x = str(about.stdout, "utf-8")
+        print(x)
+        print("stderr is")
+        x = str(about.stderr, "utf-8")
+        print(x)
+        """
+
+    def _fix_tmalign_pdbs(self, verbose=False):
+        file_pairs = []
+        for domain in self.settings.active_superfamilies:
+            output_dir = self.cwd_prefix + domain + '/' + self.superposed_folder
+            original_files = Path(self.cwd_prefix).glob(f"{domain}{self.cwd_suffix}/*.pdb")
+            for f in original_files:
+                tmaligned_file = output_dir + "/" + os.path.basename(f)
+                file_pairs.append((f,tmaligned_file))
+
+        # joblib 'Parallel' documentation: "-1 all CPUs are used"
+        Parallel(n_jobs=-1)(delayed(self.__fix_single_tmalign_pdb)(files) for files in file_pairs)
+
+    def __fix_single_tmalign_pdb(self, file_paths):
+        """
+        TMalign repeats the reference protein as chain "B" in the output file,
+        so we update the aligned file with the (superimposed) target from chain
+        "A" only (NB! We keep the original chain name, if that was not "A" in 
+        the original file)
+        """
+        (original_file, tmaligned_file) = file_paths
+
+        # extract the original CHAIN ID from the first atom line (defaults to "A" if not given)
+        chainID = "A"
+        with open(original_file, 'r') as f:
+            for line in f:
+                if line.startswith("ATOM"):
+                    if line[21] != " ":
+                        chainID = line[21]
+                    break
+
+        # keep only atom lines (that belong to chain "A") 
+        newLines = []
+        with open(tmaligned_file, 'r') as f:
+            for line in f:
+                if line.startswith("ATOM") and line[21] == "A":
+                    newLines.append(line[0:21] + chainID + line[22:])
+
+        # write the newLines in a the same tmaligned_file
+        with open(tmaligned_file, 'w') as f:
+            for line in newLines:
+                f.write(line)
+
+
+    ############################################################################
+    # superpose-related methods below (ALTERNATIVE WITH CATH-SUPERPOSE)
 
     def _fetch_cath_superpose_binary(self) -> bool:
         if self.settings.OS == "linux":
@@ -199,6 +305,7 @@ class Preprocessing:
 
         return success_only
     
+
     ############################################################################
     # reorient-related methods below
 
@@ -223,7 +330,9 @@ class Preprocessing:
                 os.makedirs(output_dir)
 
             rotation, translation = self._get_transformation_from_reference(domain)
-            self._transform_pdbs(input_dir, output_dir, rotation, translation)
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', BiopythonWarning)
+                self._transform_pdbs(input_dir, output_dir, rotation, translation)
 
             if verbose:
                 print(f"  '{domain}' orientation:")
