@@ -53,65 +53,65 @@ from src.dataset_manager import DatasetManager
 from src.figure_generator import FigureGenerator
 
 def main():
-# notebook #0
-global_settings = Settings()   # setup reading standard configuration file
-#global_settings = Settings("/opt/cbu/my.config")  # different config file
+    # notebook #0
+    global_settings = Settings()   # setup reading standard configuration file
+    #global_settings = Settings("/opt/cbu/my.config")  # different config file
 
-# support to specify superfamilies not implemented by default
-global_settings.add_new_superfamily(name = "C1",
-                                    ref_pdb = "1ptrA00", # reference for tagging IBS
-                                    ref_res1 = "243",
-                                    ref_res2 = "257",
-                                    ref_res3 = "237",
-                                    cath_domain = "3.30.60.20",
-                                    prosite_domain = "PS50081",
-                                    interpro_domain = None,
-                                    refine_AF_data_with_interpro = False)
+    # support to specify superfamilies not implemented by default
+    global_settings.add_new_superfamily(name = "C1",
+                                        ref_pdb = "1ptrA00", # reference for tagging IBS
+                                        ref_res1 = "243",
+                                        ref_res2 = "257",
+                                        ref_res3 = "237",
+                                        cath_domain = "3.30.60.20",
+                                        prosite_domain = "PS50081",
+                                        interpro_domain = None,
+                                        refine_AF_data_with_interpro = False)
+    
+    # notebook #1
+    #data_retriever = DataRetriever(global_settings)
+    #data_retriever.fetch()
 
-# notebook #1
-data_retriever = DataRetriever(global_settings)
-data_retriever.fetch()
+    # superposition and reorientation of downloaded PDBs
+    preprocess = Preprocessing(global_settings)
+    preprocess.run(database="cath", verbose=False, use_cath_superpose=False)
 
-# superposition and reorientation of downloaded PDBs
-preprocess = Preprocessing(global_settings)
-preprocess.run(database="cath", verbose=False, use_cath_superpose=False)
+    # alternative, pairwise superimposition. NB! Might take too much time!
+    #preprocess.run(database="cath", use_cath_superpose=True)
 
-# alternative, pairwise superimposition. NB! Might take too much time!
-#preprocess.run(database="cath", use_cath_superpose=True)
+    # notebook #2
+    #dataset_manager = DatasetManager(global_settings)
+    #dataset_manager.build()   # build dataset from fetched data
+    #dataset_manager.load_light_dataset()  # load dataset built on a previous run
 
-# notebook #2
-dataset_manager = DatasetManager(global_settings)
-dataset_manager.build()   # build dataset from fetched data
-#dataset_manager.load_light_dataset()  # load dataset built on a previous run
+    # notebook #3
+    #dataset_manager.fetch_alphafold_data()
+    """
+    dataset_manager.fetch_alphafold_data(EXCLUDE_SEQS = ["Q54C71",    # optional
+                                                         "O94827",
+                                                         "Q54C71",
+                                                         "Q22070",
+                                                         "P39960",
+                                                         "Q62077",
+                                                         "Q06839"],
+                                         EXCLUDE_DOMAIN = ["PLA"])   # optional
+    """
+    #preprocess.run(database="alphafold", verbose=True, use_cath_superpose=False)
+    #dataset_manager.build(recalculate=True)
 
-# notebook #3
-#dataset_manager.fetch_alphafold_data()
-"""
-dataset_manager.fetch_alphafold_data(EXCLUDE_SEQS = ["Q54C71",    # optional
-                                                     "O94827",
-                                                     "Q54C71",
-                                                     "Q22070",
-                                                     "P39960",
-                                                     "Q62077",
-                                                     "Q06839"],
-                                     EXCLUDE_DOMAIN = ["PLA"])   # optional
-"""
-#preprocess.run(database="alphafold", verbose=True, use_cath_superpose=False)
-#dataset_manager.build(recalculate=True)
+    # auxiliary tools notebook for interfacial binding sites (IBS) tagging
+    #dataset_manager.add_IBS_data(db="cath+af")   # tag and save merged dataset
+    #dataset_manager.load_IBS_data(db="cath+af")   # load from a previous run
 
-# auxiliary tools notebook for interfacial binding sites (IBS) tagging
-#dataset_manager.add_IBS_data(db="cath+af")   # tag and save merged dataset
-#dataset_manager.load_IBS_data(db="cath+af")   # load from a previous run
-
-# notebook #4
-#figure_gen = dataset_manager.get_figure_generator_after_IBS()
-#figure_gen.make_figure_composition_of_exposed_IBS()
-#figure_gen.make_figure_protrusions()
-#figure_gen.make_figure_composition_for_proteins_with_HP_at_IBS()
-#figure_gen.make_figure_neighbourhood_composition()
-#figure_gen.make_figure_number_of_structures_w_and_wo_HP_at_IBS()
-#figure_gen.make_figure_composition_for_proteins_without_HP_at_IBS()
-#figure_gen.make_figure_superfamily_decomposition_exposed_env_HP()
+    # notebook #4
+    #figure_gen = dataset_manager.get_figure_generator_after_IBS()
+    #figure_gen.make_figure_composition_of_exposed_IBS()
+    #figure_gen.make_figure_protrusions()
+    #figure_gen.make_figure_composition_for_proteins_with_HP_at_IBS()
+    #figure_gen.make_figure_neighbourhood_composition()
+    #figure_gen.make_figure_number_of_structures_w_and_wo_HP_at_IBS()
+    #figure_gen.make_figure_composition_for_proteins_without_HP_at_IBS()
+    #figure_gen.make_figure_superfamily_decomposition_exposed_env_HP()
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),
