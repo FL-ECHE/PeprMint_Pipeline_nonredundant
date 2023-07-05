@@ -64,10 +64,12 @@ To download and install the latest version of mamba on a unix-like platform,
 open a terminal and run (we are asked to accept the license agreement, accept or 
 suggest an install location, and accept to initialize the distribution)
 
-```bash
-curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-$(uname)-$(uname -m).sh"
-bash Mambaforge-$(uname)-$(uname -m).sh
+```diff
+ - ⚠️ ONLY IF YOU DON'T HAVE A PREVIOUS ANACONDA OR MINICONDA INSTALL! ⚠️
 ```
+You can install it with the following command : `bash install_miniconda.sh`.  
+also, if you have `conda` but not `mamba` installed you can install it with: `conda install -c conda-forge mamba -y`
+
 
 When the process is over, close the current terminal and open a new one. Make 
 sure that the installation was succesful by seeing a nice output in the terminal
@@ -85,6 +87,7 @@ conda config --set auto_activate_base true
 
 
 ## Setup
+
 We are now ready to setup the library dependencies to create the Peprmint dataset. First, enter the following to ensure that packages concerning the notebook support are in place.
 ```bash
 mamba install -c conda-forge nb_conda_kernels nodejs ipywidgets jupyterlab
@@ -92,14 +95,21 @@ mamba install -c conda-forge nb_conda_kernels nodejs ipywidgets jupyterlab
 
 After downloading/cloning this repository (e.g. with `git clone https://github.com/reuter-group/tubiana_etal_2022.git`), one may create the adequate 
 environment for this project either within jupyter (choose the file 
-`environment.yml`) or directly in the terminal: navigate (`cd ...`) to the 
+`environment.yml`) or directly in the terminal: navigate (`cd tubiana_etal_2022`) to the 
 corresponding path and run
 
 ```bash
 mamba env create -f environment.yml
 ```
 
-Done! Just run `mamba activate peprmint` to initialize the environment and start using the software. Have fun! (:
+Now activate the environement and install the package to make it visible everywhere in the system: 
+```bash
+mamba activate peprmint
+pip install -e .
+```
+
+
+Have fun! (:
 
 
 # Usage (under construction)
