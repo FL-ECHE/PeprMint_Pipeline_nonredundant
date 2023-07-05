@@ -577,7 +577,99 @@ class Dataset():
 
   
 
-    def export_dataset_PePrMInt(self, outputfile=None):
+    # def export_dataset_PePrMInt(self, outputfile=None):
+    #     """
+    #     Clean and prepare the dataset for PePrMInt database (PrPr2DS)
+    #     Returns: df (pd.DataFrame)
+    #     """
+    #     long2short = {'domain': 'dm',
+    #         'cathpdb': 'cath',
+    #         'pdb': 'pdb',
+    #         'uniprot_acc': 'uacc',
+    #         'uniprot_id': 'uid',
+    #         'residue_name': 'rna',
+    #         'IBS': 'ibs',
+    #         'chain_id': 'chain',
+    #         'residue_number': 'rnu',
+    #         'b_factor': 'bf',
+    #         'sec_struc': 'ss',
+    #         'sec_struc_full': 'ssf',
+    #         'prot_block': 'pb',
+    #         'data_type': 'dt',
+    #         'Experimental Method': 'em',
+    #         'resolution': 'rsl',
+    #         'RSA_total_freesasa_tien': 'rsa',
+    #         'convhull_vertex': 'cv',
+    #         'protrusion': 'pro',
+    #         'is_hydrophobic_protrusion': 'hypro',
+    #         'is_co_insertable': 'coin',
+    #         'neighboursList': 'nbl',
+    #         'density': 'den',
+    #         'exposed': 'expo',
+    #         'S35': 's35',
+    #         'S60': 's60',
+    #         'S95': 's95',
+    #         'S100': 's100',
+    #         'uniref50': 'u50',
+    #         'uniref90': 'u90',
+    #         'uniref100': 'u100',
+    #         'origin': 'origin',
+    #         'location': 'loc',
+    #         'taxon': 'taxon'}
+
+
+
+    #     #tips to save only 1 atom per PDB. take ONLY CB for residue except for GLY and get rid of the atom_name 
+    #     df = self.domainDf.query("(atom_name == 'CB') or (residue_name == 'GLY')")        
+    #     #Correct alphafold typo...
+    #     df['data_type'].replace({'alfafold':'alphafold'}, inplace=True)
+    #     #Actually, remove alphafold for pepr2web
+    #     df = df.query("data_type != 'alphafold'")
+
+
+
+    #     keepColNames = list(long2short.keys())
+    #     #Add the columns if does not exist (example, from custom CSV generation).
+    #     for col in keepColNames:
+    #         if col not in df.columns:
+    #             df[col] = np.nan
+
+    #     df = df[
+    #         ["domain", "cathpdb", 'pdb',
+    #         'uniprot_acc', 
+    #         'uniprot_id', 
+    #         # 'atom_number', 
+    #         #'atom_name', 
+    #         'residue_name', 
+    #         'IBS', #BINDING SITE 
+    #          'chain_id', 
+    #          'residue_number',
+    #          'b_factor', 'sec_struc', 'sec_struc_full', 'prot_block', # Structure stuff
+    #          'data_type', 'Experimental Method', 'resolution', 'RSA_total_freesasa_tien', # Experimental stuff
+    #          'convhull_vertex', 'protrusion', 'is_hydrophobic_protrusion', 'is_co_insertable', 'neighboursList', 'density', # Hydrophobic protrusions 
+    #          'exposed',  #Exposision
+    #           'S35', 'S60', 'S95', 'S100', 'uniref50', 'uniref90', 'uniref100',  #Clusters
+    #          'origin', 'location', 'taxon',
+    #          ]]
+
+
+
+    #     #Renaming the structures if needed
+    #     df = df.rename({
+    #         'cathpdb': 'structure_name',
+    #         'RSA_total_freesasa_tien':'RSA',
+    #         }
+    #     )
+
+
+
+
+    #     df.to_csv(outputfile, index=False,) # Full dataset, Full name
+
+
+
+
+    def export_dataset_PePrMInt(self, removeCB=True, peprmint_web_dataset_folder = '/Users/thibault/softwares/peprmint-web/web-client/src/datasets', PePr2Ds_folder='/Users/thibault/OneDrive - University of Bergen/projects/peprmint/dev/pepr2ds/Ressources/datasets', custom_mode=False):
         """
         Clean and prepare the dataset for PePrMInt database (PrPr2DS)
         Returns: df (pd.DataFrame)
@@ -663,5 +755,53 @@ class Dataset():
 
 
 
+        if custom_mode == False:
+            outputFolder = f"{self.PEPRMINT_FOLDER}/dataset"
+            df.to_pickle(f"{outputFolder}/PePr2DS.pkl", ) # Full dataset, Full name
+            df.to_csv(f"{self.PEPRMINT_FOLDER}/dataset/PePr2DS.csv", index=False,) # Full dataset, Full name
 
-        df.to_csv(outputfile, index=False,) # Full dataset, Full name
+            #Compress those files for GitHub
+            previousPath = os.path.abspath(os.getcwd())
+            #Go to the directory where the csv is
+        
+            os.chdir(PePr2Ds_folder)
+            df.to_pickle(f"PePr2DS.pkl.zip", compression='zip') # Full dataset, Full name
+            df.to_csv(f"PePr2DS.csv.zip", index=False, compression='zip') # Full dataset, Full name
+            os.chdir(previousPath)
+
+            #Save Statistics.json!
+            statistics = {}
+            statistics["structures"] = len(df.cathpdb.unique())
+            statistics["residueList"] = df.residue_name.unique().tolist()
+            statistics["domainsList"] = df.domain.unique().tolist()
+            statistics["experimentalMethod"] = df["Experimental Method"].unique().tolist()
+            statistics["downloadLink"] = "https://github.com/reuter-group/pepr2ds/blob/main/Ressources/datasets/PePr2DS.csv.zip"
+
+            import json 
+            # Serializing json  
+            json_object = json.dumps(statistics, indent = 4) 
+            with open(f"{peprmint_web_dataset_folder}/statistics.json", 'w') as out:
+                out.write(json_object)
+
+
+        domains = df.domain.unique()
+
+        short2long = {v: k for k, v in long2short.items()}
+
+        #Rename all columns into shorter format
+        df.rename(columns=long2short, inplace=True)
+
+        #Remove neighbor list for non protrusion
+        df.loc[df["pro"] == False, "nbl"] = np.NaN
+
+
+        #check if pepr2DS file is present.
+        for dom in domains:
+            df.query("dm == @dom").to_csv(f"{peprmint_web_dataset_folder}/domain_{dom}.csv", index=False)
+
+        print("Done")
+        print(f" - Full Dataset exported in {self.PEPRMINT_FOLDER}/dataset")
+        print(f"Peprmint-web csv format exported in {peprmint_web_dataset_folder}")
+        print("Dont' forget to update peprmint repository with git.")
+        
+        #return df
