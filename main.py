@@ -67,10 +67,10 @@ def main():
                                         prosite_domain = "PS50081",
                                         interpro_domain = None,
                                         refine_AF_data_with_interpro = False)
-    
+ 
     # notebook #1
-    #data_retriever = DataRetriever(global_settings)
-    #data_retriever.fetch()
+    data_retriever = DataRetriever(global_settings)
+    data_retriever.fetch()
 
     # superposition and reorientation of downloaded PDBs
     preprocess = Preprocessing(global_settings)
@@ -80,12 +80,12 @@ def main():
     #preprocess.run(database="cath", use_cath_superpose=True)
 
     # notebook #2
-    #dataset_manager = DatasetManager(global_settings)
-    #dataset_manager.build()   # build dataset from fetched data
+    dataset_manager = DatasetManager(global_settings)
+    dataset_manager.build()   # build dataset from fetched data
     #dataset_manager.load_light_dataset()  # load dataset built on a previous run
 
     # notebook #3
-    #dataset_manager.fetch_alphafold_data()
+    dataset_manager.fetch_alphafold_data()
     """
     dataset_manager.fetch_alphafold_data(EXCLUDE_SEQS = ["Q54C71",    # optional
                                                          "O94827",
@@ -96,22 +96,22 @@ def main():
                                                          "Q06839"],
                                          EXCLUDE_DOMAIN = ["PLA"])   # optional
     """
-    #preprocess.run(database="alphafold", verbose=True, use_cath_superpose=False)
-    #dataset_manager.build(recalculate=True)
+    preprocess.run(database="alphafold", verbose=True, use_cath_superpose=False)
+    dataset_manager.build(recalculate=True)
 
     # auxiliary tools notebook for interfacial binding sites (IBS) tagging
-    #dataset_manager.add_IBS_data(db="cath+af")   # tag and save merged dataset
+    dataset_manager.add_IBS_data(db="cath+af")   # tag and save merged dataset
     #dataset_manager.load_IBS_data(db="cath+af")   # load from a previous run
 
     # notebook #4
-    #figure_gen = dataset_manager.get_figure_generator_after_IBS()
-    #figure_gen.make_figure_composition_of_exposed_IBS()
-    #figure_gen.make_figure_protrusions()
-    #figure_gen.make_figure_composition_for_proteins_with_HP_at_IBS()
-    #figure_gen.make_figure_neighbourhood_composition()
-    #figure_gen.make_figure_number_of_structures_w_and_wo_HP_at_IBS()
-    #figure_gen.make_figure_composition_for_proteins_without_HP_at_IBS()
-    #figure_gen.make_figure_superfamily_decomposition_exposed_env_HP()
+    figure_gen = dataset_manager.get_figure_generator_after_IBS()
+    figure_gen.make_figure_composition_of_exposed_IBS()
+    figure_gen.make_figure_protrusions()
+    figure_gen.make_figure_composition_for_proteins_with_HP_at_IBS()
+    figure_gen.make_figure_neighbourhood_composition()
+    figure_gen.make_figure_number_of_structures_w_and_wo_HP_at_IBS()
+    figure_gen.make_figure_composition_for_proteins_without_HP_at_IBS()
+    figure_gen.make_figure_superfamily_decomposition_exposed_env_HP()
 
 if __name__ == '__main__':
     print('Running under Python {0[0]}.{0[1]}.{0[2]}'.format(sys.version_info),

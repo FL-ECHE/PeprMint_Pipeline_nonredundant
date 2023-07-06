@@ -60,16 +60,23 @@ currently being replaced by Mamba, especially for scientific packaging in
 Python. For all purposes of this project, consider mamba a thin, more efficient
 layer on top of conda.
 
-To download and install the latest version of mamba on a unix-like platform, 
-open a terminal and run (we are asked to accept the license agreement, accept or 
-suggest an install location, and accept to initialize the distribution)
+
+___
+
 
 ```diff
  - ⚠️ ONLY IF YOU DON'T HAVE A PREVIOUS ANACONDA OR MINICONDA INSTALL! ⚠️
 ```
-You can install it with the following command : `bash install_miniconda.sh`.  
-also, if you have `conda` but not `mamba` installed you can install it with: `conda install -c conda-forge mamba -y`
 
+To download and install the latest version of mamba on a unix-like platform, 
+open a terminal and run `bash install_miniconda.sh`. We are asked to accept the 
+license agreement, accept or suggest an install location, and accept to 
+initialize the distribution.
+
+Alternatively, if you have `conda` but not `mamba` installed you can install it 
+with: `conda install -c conda-forge mamba -y`
+
+___
 
 When the process is over, close the current terminal and open a new one. Make 
 sure that the installation was succesful by seeing a nice output in the terminal
@@ -102,7 +109,7 @@ corresponding path and run
 mamba env create -f environment.yml
 ```
 
-Now activate the environement and install the package to make it visible everywhere in the system: 
+Now activate the environment and install the package to make it visible everywhere in the system: 
 ```bash
 mamba activate peprmint
 pip install -e .
@@ -114,14 +121,17 @@ Have fun! (:
 
 # Usage (under construction)
 
-[Check again soon... currently preparing usage instructions!]
+Check out the documentation under [docs/](/docs/index.md)! In a nutshell, we may 
+use the 
 
 1. Adjust desired settings in the `peprmint_default.config` file (optional). 
 Alternatively, deleting that file makes the execution fall back to factory 
 settings, and populate datasets under folder `data` in the current directory.
 
 2. Run `python main.py` in the terminal, or open `main-nb-example` for 
-a notebook usage example.
+a notebook usage example. In particular, comment/uncomment the code lines 
+corresponding to the desired steps of the computation. (_It's easy, we 
+promise!_)
 
 The user should be able to choose which steps of the computation are actually 
 executed, so that it is possible to interact with intermediate results to 
