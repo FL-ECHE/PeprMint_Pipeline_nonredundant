@@ -121,8 +121,8 @@ Have fun! (:
 
 # Usage (under construction)
 
-Check out the documentation under [docs/](/docs/index.md)! In a nutshell, we may 
-use the 
+Check out the instructions and documentation under [docs/](/docs/index.md)! In a 
+nutshell, we proceed as follows.
 
 1. Adjust desired settings in the `peprmint_default.config` file (optional). 
 Alternatively, deleting that file makes the execution fall back to factory 

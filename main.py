@@ -3,7 +3,7 @@
 #
 # MIT License
 # 
-# Copyright (c) 2022 Reuter Group
+# Copyright (c) 2023 Reuter Group
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -35,7 +35,7 @@ intermediate results.
 
 __author__ = ["Thibault Tubiana", "Phillippe Samer"]
 __organization__ = "Computational Biology Unit, Universitetet i Bergen"
-__copyright__ = "Copyright (c) 2022 Reuter Group"
+__copyright__ = "Copyright (c) 2023 Reuter Group"
 __license__ = "MIT"
 __version__ = "0.0.1"
 __maintainer__ = "Phillippe Samer"

@@ -3,7 +3,7 @@
 #
 # MIT License
 # 
-# Copyright (c) 2022 Reuter Group
+# Copyright (c) 2023 Reuter Group
 # 
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,7 @@ of IBS (interfacial binding sites).
 
 __author__ = ["Thibault Tubiana", "Phillippe Samer"]
 __organization__ = "Computational Biology Unit, Universitetet i Bergen"
-__copyright__ = "Copyright (c) 2022 Reuter Group"
+__copyright__ = "Copyright (c) 2023 Reuter Group"
 __license__ = "MIT"
 __version__ = "0.0.1"
 __maintainer__ = "Phillippe Samer"
@@ -178,7 +178,9 @@ class Preprocessing:
             original_files = Path(self.cwd_prefix).glob(f"{domain}{self.cwd_suffix}/*.pdb")
             for f in original_files:
                 tmaligned_file = output_dir + "/" + os.path.basename(f)
-                file_pairs.append((f,tmaligned_file))
+                # some files (especially from AF models) might be empty - skip these
+                if os.path.exists(tmaligned_file):
+                    file_pairs.append((f,tmaligned_file))
 
         # joblib 'Parallel' documentation: "-1 all CPUs are used"
         Parallel(n_jobs=-1)(delayed(self.__fix_single_tmalign_pdb)(files) for files in file_pairs)
