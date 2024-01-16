@@ -366,3 +366,4 @@ class DatasetManager:
         dfReprUniref = seqdf.query("uniprot_acc in @dfReprUnirefNames")
 
         return (pd.concat([dfReprCath, dfReprUniref]))
+
