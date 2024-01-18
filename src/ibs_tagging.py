@@ -167,7 +167,7 @@ class IBSTagging:
         
         self.pepr2ds_dataset = self._merge_data()
         self.remove_duplicates()
-        self.final_save()
+        
 
     def make_analysis_report(self):
         if self.pepr2ds_dataset is not None:
@@ -301,12 +301,15 @@ class IBSTagging:
         seeking = "is_hydrophobic_protrusion == True and atom_name == 'CB'"
         return len(group.query(seeking))
 
+    def final_save(self, dataset):
+        pickle.dump(dataset, "/Home/ii/floriane/purged.pkl")
+
     def remove_duplicates(self):
-        #df = df.drop(df[df['uniprot_acc'] == uniprot and df["chain_id"] == chain and df["S100"] != cath].index)
+        df = self.pepr2ds_dataset.domainDf
         stry = " "
         i=0
-        for domain in self.pepr2ds_dataset["domain"].unique():
-            x = self.pepr2ds_dataset.query("data_type == 'cathpdb'").query("domain == @domain")
+        for domain in self.pepr2ds_dataset.domainDf["domain"].unique():
+            x = self.pepr2ds_dataset.domainDf.query("data_type == 'cathpdb'").query("domain == @domain")
             y = x["uniprot_acc"].astype("string") + x["chain_id"].astype("string")
             
             for entry in y.unique():
@@ -316,15 +319,21 @@ class IBSTagging:
                 else:
                     uniprot = entry[:-1]
                     chain = entry[-1]
-                    all_rows = self.pepr2ds_dataset.query("uniprot_acc == @uniprot").query("chain_id == @chain")["S100"]
+                    all_rows = self.pepr2ds_dataset.domainDf.query("uniprot_acc == @uniprot").query("chain_id == @chain")["S100"]
                     unique_cath = all_rows.unique()
                     for single_cath in unique_cath :
                         if len(single_cath) < 4:
                             pass
                         else:
-                            self.pepr2ds_dataset = self.pepr2ds_dataseti.drop(self.pepr2ds_dataset[self.pepr2ds_dataset['uniprot_acc'] == uniprot and df["chain_id"] == chain and df["S100"] != cath].index)
+                            print(df)
+                            #queryy = df.query("uniprot_acc == @uniprot").query("chain_id == @chain").query("S100 == @single_cath")
+                            #df = df.drop(df[df['uniprot_acc'] == uniprot & df["chain_id"] == chain & df["S100"] != cath].index)
+                            print("**************************************")
+                            print(uniprot + chain + single_cath)
+                            df = df[(df['uniprot_acc'].astype("string") != uniprot) & (df["chain_id"].astype("string") != chain) & (df["S100"].astype("string") != single_cath)]
+                            print(df)
+                            break
+        #self.final_save(df)
 
 
-    def final_save(self):
-        self.remove_duplicates()
-        pickle.dump(df, "/Home/ii/floriane/purged.pkl")
+
